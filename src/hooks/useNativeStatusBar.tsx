@@ -2,7 +2,11 @@
  * Native Status Bar and Navigation Bar utilities
  * Uses Capacitor StatusBar plugin for Android/iOS
  * Uses @boengli/capacitor-fullscreen for true Android immersive mode
+ * 
+ * OPPO A57 and similar devices: Enables edge-to-edge immersive display
+ * with transparent status bar and hidden navigation bar
  */
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
@@ -26,6 +30,31 @@ const loadFullscreenPlugin = async () => {
  * Check if running on a native platform
  */
 const isNative = () => Capacitor.isNativePlatform();
+
+/**
+ * Initialize edge-to-edge display mode
+ * Makes content draw behind the status bar with transparent background
+ */
+export async function initEdgeToEdge(): Promise<void> {
+  if (!isNative()) return;
+
+  try {
+    // Set status bar to overlay mode (content draws behind it)
+    await StatusBar.setOverlaysWebView({ overlay: true });
+    
+    // Make status bar background transparent
+    if (Capacitor.getPlatform() === 'android') {
+      await StatusBar.setBackgroundColor({ color: '#00000000' });
+    }
+    
+    // Set light style for dark backgrounds (white icons)
+    await StatusBar.setStyle({ style: Style.Dark });
+    
+    console.log('[StatusBar] Edge-to-edge mode initialized');
+  } catch (error) {
+    console.log('[StatusBar] Failed to init edge-to-edge:', error);
+  }
+}
 
 /**
  * Enter immersive/fullscreen mode - hides both status bar and navigation bar
@@ -63,6 +92,7 @@ export async function enterImmersiveFullscreen(): Promise<void> {
 
 /**
  * Exit immersive mode - shows status bar and navigation bar
+ * Restores edge-to-edge transparent status bar mode
  */
 export async function exitImmersiveFullscreen(): Promise<void> {
   if (!isNative()) return;
@@ -80,6 +110,9 @@ export async function exitImmersiveFullscreen(): Promise<void> {
           console.log('[StatusBar] Fullscreen plugin exit call failed:', e);
         }
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Restore edge-to-edge mode after exiting immersive
+        await initEdgeToEdge();
         return;
       }
     }
@@ -122,7 +155,7 @@ export async function hideStatusBar(): Promise<void> {
 }
 
 /**
- * Show status bar
+ * Show status bar with edge-to-edge transparent mode
  */
 export async function showStatusBar(): Promise<void> {
   if (!isNative()) return;
@@ -139,6 +172,9 @@ export async function showStatusBar(): Promise<void> {
           console.log('[StatusBar] Deactivate immersive call failed:', e);
         }
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Restore edge-to-edge transparent status bar
+        await initEdgeToEdge();
         return;
       }
     }
@@ -196,9 +232,13 @@ export async function setStatusBarBackgroundColor(color: string): Promise<void> 
 
 /**
  * Hook for managing status bar appearance
- * Call this in your root component
+ * Initializes edge-to-edge mode on mount for native apps
  */
 export function useNativeStatusBar() {
-  // This hook can be extended to sync status bar with theme
-  // Currently used as a marker for native status bar initialization
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      // Initialize edge-to-edge display on app start
+      initEdgeToEdge();
+    }
+  }, []);
 }

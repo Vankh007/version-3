@@ -14,8 +14,9 @@ const config: CapacitorConfig = {
       // Allow orientation changes to be managed programmatically
     },
     StatusBar: {
-      style: 'dark',
-      backgroundColor: '#000000'
+      style: 'light',
+      backgroundColor: '#00000000', // Fully transparent
+      overlaysWebView: true // Content draws behind status bar
     },
     AdMob: {
       // AdMob settings are loaded from Supabase app_ad_settings
@@ -35,7 +36,9 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     backgroundColor: '#000000',
-    webContentsDebuggingEnabled: false
+    webContentsDebuggingEnabled: false,
+    // Enable edge-to-edge display (content behind system bars)
+    overrideUserAgent: undefined
   },
   ios: {
     backgroundColor: '#000000',
