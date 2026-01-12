@@ -5,7 +5,6 @@ import { useIsTablet } from '@/hooks/use-tablet';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { HomeFilledIcon, ShortsIcon } from '@/components/icons/CustomIcons';
-import { Capacitor } from '@capacitor/core';
 import { useFullscreenState } from '@/hooks/useFullscreenState';
 
 const BottomNav = () => {
@@ -45,7 +44,6 @@ const BottomNav = () => {
 
   const isShortPage = location.pathname === '/short';
   const isMobileOrTablet = isMobile || isTablet;
-  const isNative = Capacitor.isNativePlatform();
 
   // Hide BottomNav completely during fullscreen video playback
   if (isFullscreen) {
@@ -60,13 +58,13 @@ const BottomNav = () => {
       } ${
         isShortPage 
           ? '' 
-          : isMobileOrTablet || isNative
+          : isMobileOrTablet
             ? 'bg-background/50 backdrop-blur-md border-t border-border/50' 
             : 'bg-background/80 backdrop-blur-lg border-t border-border'
-      } ${isNative ? 'native-app-bottom-nav' : ''}`}
+      }`}
       style={{ 
         marginBottom: '0.1px',
-        paddingBottom: isNative ? 'calc(env(safe-area-inset-bottom, 0px) + 0.25rem)' : 'env(safe-area-inset-bottom, 0px)'
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
     >
       <div className="flex justify-around items-center h-12 max-w-screen-xl mx-auto py-1">
