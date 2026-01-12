@@ -260,11 +260,10 @@ const VideoPlayer = ({
   
   // Stub out native-only features for web
   const isNativeForAds = false;
-  const shouldShowRewardedAtCheckpoint = () => false;
-  const showRewardedAd = async () => {};
+  const shouldShowRewardedAtCheckpoint = (_checkpoint: string) => false;
+  const showRewardedAd = async (_checkpoint: string) => {};
   const isShowingRewardedAd = false;
-  const shownAdMobCheckpoints = new Set<string>();
-  const setShownAdMobCheckpoints = () => {};
+  const [shownAdMobCheckpoints, setShownAdMobCheckpoints] = useState<Set<string>>(new Set());
   const isNativePlatform = false;
   const episodesScrollRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1272,12 +1271,11 @@ const VideoPlayer = ({
     setCurrentTime(value[0]);
   };
 
-  // Fullscreen toggle - uses the iPad-optimized hook
-  // The hook handles: CSS-based fullscreen for PWA, touch events, and playback preservation
-  const toggleFullscreen = useCallback(async () => {
-    // Use the hook's toggle which handles PWA, iPad, and native cases
-    await iPadToggleFullscreen();
-  }, [iPadToggleFullscreen]);
+  // Fullscreen toggle - uses web fullscreen API
+  const handleToggleFullscreen = useCallback(async () => {
+    const result = await toggleFullscreen(containerRef.current || undefined);
+    setIsFullscreen(result);
+  }, []);
 
   const togglePictureInPicture = async () => {
     if (!videoRef.current) return;
@@ -1883,7 +1881,7 @@ const VideoPlayer = ({
                       e.stopPropagation();
                       // Avoid double-triggering from both click and touchend
                       if (!(e.nativeEvent as any).fromTouch) {
-                        toggleFullscreen();
+                        handleToggleFullscreen();
                       }
                     }}
                     onTouchStart={(e) => {
@@ -1894,7 +1892,7 @@ const VideoPlayer = ({
                       e.preventDefault();
                       e.stopPropagation();
                       // Use setTimeout to ensure touch is processed properly on iPad
-                      setTimeout(() => toggleFullscreen(), 0);
+                      setTimeout(() => handleToggleFullscreen(), 0);
                     }}
                     className={`h-8 w-8 sm:h-9 sm:w-9 text-white hover:bg-white/10 active:bg-white/20 touch-manipulation select-none ${
                       isFullscreenTransitioning ? 'opacity-50 cursor-wait' : ''
