@@ -269,6 +269,20 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
     ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
     URL.revokeObjectURL(url);
 
+    // Draw logo centered inside QR code with white background circle
+    const centerLogoSize = 50;
+    const centerX = qrX + (qrSize - centerLogoSize) / 2;
+    const centerY = qrY + (qrSize - centerLogoSize) / 2;
+    
+    // Draw white circle background for logo
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(qrX + qrSize / 2, qrY + qrSize / 2, centerLogoSize / 2 + 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw the logo in the center
+    ctx.drawImage(logoImg, centerX, centerY, centerLogoSize, centerLogoSize);
+
     // Draw "Scan to Pay $XX.XX" text
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 20px Arial';
