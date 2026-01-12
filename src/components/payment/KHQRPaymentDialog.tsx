@@ -464,8 +464,8 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
           )}
 
           {paymentStatus === 'pending' && qrCode && (
-            <div className="space-y-4">
-              <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-lg">
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-lg animate-scale-in">
                 <QRCode id="qr-code-svg" value={qrCode} size={250} />
               </div>
 
