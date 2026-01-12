@@ -106,6 +106,20 @@ export async function enterImmersiveFullscreen(): Promise<void> {
   if (!isNative()) return;
 
   try {
+    // IMPORTANT: Some OEM Android builds will briefly show a *white* status bar area
+    // during rotation/fullscreen transitions. Force edge-to-edge transparent status bar
+    // first, then hide it, then activate immersive mode.
+    try {
+      await StatusBar.setOverlaysWebView({ overlay: true });
+      if (Capacitor.getPlatform() === 'android') {
+        await StatusBar.setBackgroundColor({ color: '#00000000' });
+      }
+      // Prefer light icons if the bar flashes visible over dark video.
+      await StatusBar.setStyle({ style: Style.Light });
+    } catch (e) {
+      console.log('[StatusBar] Pre-fullscreen edge-to-edge setup failed:', e);
+    }
+
     // Step 1: Hide status bar FIRST before immersive mode
     try {
       await StatusBar.hide();
@@ -125,9 +139,10 @@ export async function enterImmersiveFullscreen(): Promise<void> {
         } catch (e) {
           console.log('[StatusBar] Fullscreen plugin call failed:', e);
         }
+
         // Wait for immersive mode to take effect
-        await new Promise(resolve => setTimeout(resolve, 150));
-        
+        await new Promise(resolve => setTimeout(resolve, 200));
+
         // Step 3: Re-hide status bar after immersive mode activation to ensure it stays hidden
         try {
           await StatusBar.hide();

@@ -493,12 +493,16 @@ All colors MUST be HSL.
   }
 }
 
-/* Android Native Video Player Wrapper - 38px top padding for status bar */
+/* Android Native Video Player Wrapper
+   Previously had 38px top padding, but this created a visible white band ("top padding")
+   when rotating to landscape/fullscreen on some devices.
+   We keep the wrapper for layout compatibility, but remove the hardcoded padding.
+*/
 .native-android-player-wrapper {
-  padding-top: 38px;
+  padding-top: 0 !important;
   padding-left: 0;
   padding-right: 0;
-  background-color: hsl(var(--background));
+  background-color: hsl(0 0% 0%);
 }
 
 /* Ensure the wrapper maintains proper layout */
