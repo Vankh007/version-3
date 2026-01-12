@@ -2,9 +2,12 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.plexkhmerzoon',
-  appName: 'KHMERZOON',
+  appName: 'Khmerzoon-Tv',
   webDir: 'dist',
-  // No server config - runs from dist folder
+  server: {
+    url: 'https://khmerzoon.biz',
+    cleartext: true
+  },
   plugins: {
     ScreenOrientation: {
       // Allow orientation changes to be managed programmatically
