@@ -209,81 +209,106 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
     onClose();
   };
 
+  // Generate watermarked KHQR image matching reference design
+  const generateWatermarkedQRImage = async (): Promise<Blob | null> => {
+    const qrSvg = document.getElementById('qr-code-svg');
+    if (!qrSvg) return null;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Canvas size for the watermarked image
+    const width = 400;
+    const height = 520;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Fill white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Load and draw logo
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    logoImg.src = logo;
+    
+    await new Promise((resolve) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = resolve;
+    });
+
+    // Draw logo (centered at top) - small size
+    const logoSize = 40;
+    ctx.drawImage(logoImg, (width - logoSize) / 2, 20, logoSize, logoSize);
+
+    // Draw app name "KHMERZOON" below logo
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('KHMERZOON', width / 2, 80);
+
+    // Convert QR SVG to image
+    const svgData = new XMLSerializer().serializeToString(qrSvg);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    const qrImg = new Image();
+    qrImg.crossOrigin = 'anonymous';
+    
+    await new Promise((resolve, reject) => {
+      qrImg.onload = resolve;
+      qrImg.onerror = reject;
+      qrImg.src = url;
+    });
+
+    // Draw QR code (centered)
+    const qrSize = 260;
+    const qrX = (width - qrSize) / 2;
+    const qrY = 100;
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    URL.revokeObjectURL(url);
+
+    // Draw "Scan to Pay $XX.XX" text
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Scan to Pay $${parseFloat(amount).toFixed(2)}`, width / 2, qrY + qrSize + 35);
+
+    // Draw "Open in Banking App" text
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px Arial';
+    ctx.fillText('Open in Banking App', width / 2, qrY + qrSize + 60);
+
+    // Draw "Powered by KHQR" watermark at bottom
+    ctx.fillStyle = '#999999';
+    ctx.font = '12px Arial';
+    ctx.fillText('Powered by KHQR', width / 2, height - 15);
+
+    // Convert to blob
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/png', 1.0);
+    });
+  };
+
   const downloadQRCode = async () => {
     if (!qrCode) return;
 
     try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Set canvas size (QR code + header space)
-      canvas.width = 800;
-      canvas.height = 900;
-
-      // Fill white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Load and draw logo
-      const logoImg = new Image();
-      logoImg.crossOrigin = 'anonymous';
-      logoImg.src = logo;
+      const blob = await generateWatermarkedQRImage();
       
-      await new Promise((resolve) => {
-        logoImg.onload = resolve;
-      });
-
-      // Draw logo (centered at top)
-      const logoSize = 80;
-      ctx.drawImage(logoImg, (canvas.width - logoSize) / 2, 30, logoSize, logoSize);
-
-      // Draw app name
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 36px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('KHMERZOON', canvas.width / 2, 150);
-
-      // Generate QR code as SVG
-      const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svgElement.setAttribute('width', '600');
-      svgElement.setAttribute('height', '600');
-      svgElement.innerHTML = `<rect width="600" height="600" fill="#ffffff"/>`;
-      
-      // Create QR code SVG
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = `<svg width="600" height="600"><rect width="600" height="600" fill="#ffffff"/></svg>`;
-      
-      // Draw QR using external library rendering
-      const qrSvg = document.getElementById('qr-code-svg');
-      if (qrSvg) {
-        const qrImage = new Image();
-        const svgData = new XMLSerializer().serializeToString(qrSvg);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        
-        qrImage.src = url;
-        await new Promise((resolve) => {
-          qrImage.onload = resolve;
-        });
-
-        // Draw QR code (centered)
-        ctx.drawImage(qrImage, 100, 200, 600, 600);
-        URL.revokeObjectURL(url);
+      if (!blob) {
+        toast.error('Failed to generate QR image');
+        return;
       }
 
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `KHMERZOON-KHQR-${Date.now()}.png`;
-          link.click();
-          URL.revokeObjectURL(url);
-          toast.success('QR Code downloaded successfully');
-        }
-      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `KHMERZOON-KHQR-${Date.now()}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('QR Code downloaded successfully');
     } catch (error) {
       console.error('Error downloading QR code:', error);
       toast.error('Failed to download QR code');
@@ -294,80 +319,18 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
     if (!qrCode) return;
 
     try {
-      // Get the QR code SVG element
-      const qrSvg = document.getElementById('qr-code-svg');
-      if (!qrSvg) {
-        toast.error('QR code not found');
-        return;
-      }
-
-      // Create canvas with header space
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 900;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        toast.error('Canvas not supported');
-        return;
-      }
-
-      // Fill white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Load and draw logo
-      const logoImg = new Image();
-      logoImg.crossOrigin = 'anonymous';
-      logoImg.src = logo;
-      
-      await new Promise((resolve) => {
-        logoImg.onload = resolve;
-      });
-
-      // Draw logo (centered at top)
-      const logoSize = 80;
-      ctx.drawImage(logoImg, (canvas.width - logoSize) / 2, 30, logoSize, logoSize);
-
-      // Draw app name
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 36px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('KHMERZOON', canvas.width / 2, 150);
-
-      // Convert SVG to image
-      const svgData = new XMLSerializer().serializeToString(qrSvg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = url;
-      });
-
-      // Draw QR code (centered below header)
-      ctx.drawImage(img, 100, 200, 600, 600);
-      URL.revokeObjectURL(url);
-
-      // Convert to blob
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), 'image/png', 1.0)
-      );
+      const blob = await generateWatermarkedQRImage();
 
       if (!blob) {
         toast.error('Failed to create QR image');
         return;
       }
 
-      // Try Web Share API
+      // Try Web Share API for native sharing
       const navAny = navigator as any;
       if (navAny?.share) {
         try {
-          const file = new File([blob], 'KHQR-Payment.png', { type: 'image/png' });
+          const file = new File([blob], 'KHMERZOON-KHQR-Payment.png', { type: 'image/png' });
           
           // Check if we can share files
           if (navAny.canShare && !navAny.canShare({ files: [file] })) {
@@ -377,7 +340,7 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
           await navAny.share({
             files: [file],
             title: 'KHMERZOON KHQR Payment',
-            text: `Scan to pay $${parseFloat(amount).toFixed(2)}`,
+            text: `Scan to pay $${parseFloat(amount).toFixed(2)} - Open in your banking app`,
           });
           
           toast.success('QR code shared successfully');
@@ -385,21 +348,20 @@ export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDia
         } catch (shareError: any) {
           console.log('Share API error:', shareError);
           
-          // If user didn't cancel, try fallback
-          if (shareError.name !== 'AbortError') {
-            // Fallback: download instead
-            const downloadUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = `KHMERZOON-KHQR-${Date.now()}.png`;
-            link.click();
-            URL.revokeObjectURL(downloadUrl);
-            toast.success('QR code downloaded - Open in your banking app');
-            return;
-          } else {
-            // User cancelled share
+          // If user cancelled, don't show error
+          if (shareError.name === 'AbortError') {
             return;
           }
+          
+          // Fallback: download instead
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = `KHMERZOON-KHQR-${Date.now()}.png`;
+          link.click();
+          URL.revokeObjectURL(downloadUrl);
+          toast.success('QR code downloaded - Open in your banking app');
+          return;
         }
       }
 
