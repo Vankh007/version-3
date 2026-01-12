@@ -1,10 +1,9 @@
 import { createRoot } from "react-dom/client";
-import { Capacitor } from "@capacitor/core";
 import App from "./App.tsx";
 import "./index.css";
 
-// Register Service Worker for PWA (only on web)
-if ('serviceWorker' in navigator && !Capacitor.isNativePlatform()) {
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
@@ -18,7 +17,6 @@ if ('serviceWorker' in navigator && !Capacitor.isNativePlatform()) {
 }
 
 // Log platform for debugging
-console.log('[App] Platform:', Capacitor.getPlatform(), 'Native:', Capacitor.isNativePlatform());
+console.log('[App] Platform: web');
 
 createRoot(document.getElementById("root")!).render(<App />);
-
