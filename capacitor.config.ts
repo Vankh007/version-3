@@ -6,28 +6,36 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     url: 'https://khmerzoon.biz',
-    cleartext: true
+    cleartext: true,
+    androidScheme: 'https'
   },
   plugins: {
     ScreenOrientation: {
       // Allow orientation changes to be managed programmatically
     },
     StatusBar: {
-      // Status bar is managed programmatically
+      style: 'dark',
+      backgroundColor: '#000000'
     },
     AdMob: {
       // AdMob settings are loaded from Supabase app_ad_settings
     },
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 2500,
       launchAutoHide: true,
+      launchFadeOutDuration: 500,
       backgroundColor: '#000000',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
       showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true
     }
   },
   android: {
     allowMixedContent: true,
-    backgroundColor: '#000000'
+    backgroundColor: '#000000',
+    webContentsDebuggingEnabled: false
   },
   ios: {
     backgroundColor: '#000000',
