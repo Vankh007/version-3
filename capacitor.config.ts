@@ -31,12 +31,14 @@ const config: CapacitorConfig = {
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true
+    },
+    Browser: {
+      // In-app browser for OAuth
     }
   },
   android: {
     allowMixedContent: true,
     backgroundColor: '#000000',
-    webContentsDebuggingEnabled: false,
     // Edge-to-edge display enabled via StatusBar plugin
   },
   ios: {
