@@ -37,8 +37,7 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     backgroundColor: '#000000',
     webContentsDebuggingEnabled: false,
-    // Enable edge-to-edge display (content behind system bars)
-    overrideUserAgent: undefined
+    // Edge-to-edge display enabled via StatusBar plugin
   },
   ios: {
     backgroundColor: '#000000',
