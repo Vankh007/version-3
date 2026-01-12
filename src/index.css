@@ -498,12 +498,17 @@ All colors MUST be HSL.
   padding-top: 38px;
   padding-left: 0;
   padding-right: 0;
-  background-color: hsl(var(--background));
+  /* Use black background to match video player - prevents white edges */
+  background-color: black;
+  /* Ensure full width with no extra space */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Ensure the wrapper maintains proper layout */
 .native-android-player-wrapper .video-player-container {
   width: 100%;
+  max-width: 100%;
 }
 
 /* ============================================
