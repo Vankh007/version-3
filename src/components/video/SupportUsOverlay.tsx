@@ -203,7 +203,7 @@ export const SupportUsOverlay = ({
     <>
       <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
         {/* Countdown circle - positioned at 50% of video height (right side) */}
-        <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-1.5">
           <div className="relative w-7 h-7">
             <svg className="w-7 h-7 -rotate-90" viewBox="0 0 36 36">
               <circle
