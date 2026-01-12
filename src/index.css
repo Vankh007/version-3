@@ -518,11 +518,28 @@ body.native-app-immersive {
   margin-top: 0 !important;
 }
 
-/* Watch page in portrait: player starts from top edge (no extra padding) */
+/* Watch page: full edge-to-edge, no safe area padding */
 .watch-page-portrait-safe {
+  padding: 0 !important;
+  margin: 0 !important;
+  background-color: black !important;
+}
+
+/* Watch page container - full fill, no safe area insets */
+.watch-page-full-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  /* Override safe area for watch page */
+  padding-top: env(safe-area-inset-top, 0) !important;
+}
+
+/* Native app watch page - completely full screen */
+body.native-app .watch-page-full-container,
+body.native-android .watch-page-full-container,
+body.native-ios .watch-page-full-container {
   padding-top: 0 !important;
   margin-top: 0 !important;
-  background-color: black !important;
 }
 
 /* Watch page in landscape fullscreen: no padding at all */
@@ -538,5 +555,5 @@ body.native-video-fullscreen {
 }
 
 body.native-video-fullscreen .watch-page-portrait-safe {
-  padding-top: 0 !important;
+  padding: 0 !important;
 }
