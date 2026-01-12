@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import AdSlot from './AdSlot';
+import { useFullscreenState } from '@/hooks/useFullscreenState';
 
 interface AppAd {
   id: string;
@@ -25,6 +26,8 @@ interface NativeBannerAdSlotProps {
   className?: string;
   position?: 'top' | 'bottom';
   pageLocation?: string;
+  /** Hide ad during video fullscreen mode */
+  hideInFullscreen?: boolean;
 }
 
 // AdMob Plugin interface
@@ -53,8 +56,18 @@ const getAdMobPlugin = (): AdMobPlugin | null => {
  * Native AdMob banner ad slot for Capacitor apps
  * Falls back to web ads for non-native platforms
  * Supports all ad types configured in admin dashboard
+ * 
+ * Respects edge-to-edge immersive mode:
+ * - Hides during fullscreen video playback
+ * - Adds safe area margins for notched devices
  */
-export function NativeBannerAdSlot({ placement, className = '', position = 'bottom', pageLocation = 'watch' }: NativeBannerAdSlotProps) {
+export function NativeBannerAdSlot({ 
+  placement, 
+  className = '', 
+  position = 'bottom', 
+  pageLocation = 'watch',
+  hideInFullscreen = true 
+}: NativeBannerAdSlotProps) {
   const [isNative, setIsNative] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [bannerShown, setBannerShown] = useState(false);
@@ -63,6 +76,9 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
   const slotRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [isInView, setIsInView] = useState(false);
+  
+  // Track fullscreen state to hide ads during immersive video
+  const isFullscreen = useFullscreenState();
 
   // Check if native platform
   useEffect(() => {
@@ -162,9 +178,15 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
     }
   };
 
-  // Show native AdMob banner
+  // Show native AdMob banner with safe area margin
   const showBanner = useCallback(async () => {
     if (!adConfig || bannerShown || !isInView) return;
+    
+    // Don't show if in fullscreen mode
+    if (hideInFullscreen && isFullscreen) {
+      console.log('[NativeBannerAd] Skipping - fullscreen active');
+      return;
+    }
 
     const AdMob = getAdMobPlugin();
     if (!AdMob) {
@@ -176,20 +198,24 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
       const { ad, settings } = adConfig;
       const useTestMode = settings.test_mode || ad.is_test_mode;
       const adPosition = position === 'top' ? 'TOP_CENTER' : 'BOTTOM_CENTER';
+      
+      // Add margin for safe area (status bar at top, navigation at bottom)
+      const safeAreaMargin = position === 'top' ? 24 : 0; // Account for status bar
 
       await AdMob.showBanner({
         adId: ad.ad_unit_id,
         adSize: 'ADAPTIVE_BANNER',
         position: adPosition,
+        margin: safeAreaMargin,
         isTesting: useTestMode,
       });
 
       setBannerShown(true);
-      console.log('[NativeBannerAd] Banner shown for placement:', placement);
+      console.log('[NativeBannerAd] Banner shown for placement:', placement, 'with margin:', safeAreaMargin);
     } catch (error) {
       console.error('[NativeBannerAd] Failed to show banner:', error);
     }
-  }, [adConfig, bannerShown, isInView, placement, position]);
+  }, [adConfig, bannerShown, isInView, placement, position, isFullscreen, hideInFullscreen]);
 
   // Hide native AdMob banner
   const hideBanner = useCallback(async () => {
@@ -207,16 +233,26 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
     }
   }, [bannerShown]);
 
-  // Show/hide banner based on visibility
+  // Hide banner when entering fullscreen
+  useEffect(() => {
+    if (hideInFullscreen && isFullscreen && bannerShown) {
+      hideBanner();
+    }
+  }, [isFullscreen, hideInFullscreen, bannerShown, hideBanner]);
+
+  // Show/hide banner based on visibility (only when not in fullscreen)
   useEffect(() => {
     if (!isNative || !adConfig) return;
+    
+    // Skip if in fullscreen
+    if (hideInFullscreen && isFullscreen) return;
 
     if (isInView) {
       showBanner();
     } else if (bannerShown) {
       hideBanner();
     }
-  }, [isNative, adConfig, isInView, showBanner, hideBanner, bannerShown]);
+  }, [isNative, adConfig, isInView, showBanner, hideBanner, bannerShown, isFullscreen, hideInFullscreen]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -228,11 +264,23 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
     };
   }, [isNative, bannerShown]);
 
+  // Don't render anything during fullscreen
+  if (hideInFullscreen && isFullscreen) {
+    return null;
+  }
+
   // Native platform - render placeholder div for positioning
   if (isNative) {
     if (isLoading) {
       return (
-        <div ref={slotRef} className={`w-full h-12 bg-muted/30 animate-pulse flex items-center justify-center ${className}`}>
+        <div 
+          ref={slotRef} 
+          className={`w-full h-12 bg-muted/30 animate-pulse flex items-center justify-center ${className}`}
+          style={{ 
+            paddingBottom: position === 'bottom' ? 'env(safe-area-inset-bottom, 0px)' : undefined,
+            paddingTop: position === 'top' ? 'env(safe-area-inset-top, 0px)' : undefined
+          }}
+        >
           <span className="text-xs text-muted-foreground">Loading Ad...</span>
         </div>
       );
@@ -242,11 +290,15 @@ export function NativeBannerAdSlot({ placement, className = '', position = 'bott
       return null; // No ad configured
     }
 
-    // Native banner will overlay on top, this is just a spacer
+    // Native banner will overlay on top, this is just a spacer with safe area
     return (
       <div 
         ref={slotRef} 
-        className={`w-full h-[60px] ${className}`}
+        className={`w-full ${className}`}
+        style={{
+          height: '60px',
+          paddingBottom: position === 'bottom' ? 'env(safe-area-inset-bottom, 0px)' : undefined,
+        }}
         data-placement={placement}
         data-banner-active={bannerShown}
       />
