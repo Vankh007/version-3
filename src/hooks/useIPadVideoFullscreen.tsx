@@ -120,6 +120,8 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
       const style = document.createElement('style');
       style.id = 'video-fullscreen-styles';
       
+      // Critical: Ensure video maintains aspect ratio and fills screen properly
+      // Use 100vw/100vh for true fullscreen (system bars should be hidden)
       style.textContent = `
         .video-fullscreen-container {
           position: fixed !important;
@@ -128,6 +130,7 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           right: 0 !important;
           bottom: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
           height: 100dvh !important;
           z-index: 99999 !important;
@@ -137,14 +140,21 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          /* Ignore safe areas in fullscreen - video should cover everything */
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
         }
 
         .video-fullscreen-container video {
           width: 100% !important;
           height: 100% !important;
           max-width: 100vw !important;
+          max-width: 100dvw !important;
           max-height: 100vh !important;
           max-height: 100dvh !important;
+          /* CRITICAL: object-fit contain maintains aspect ratio without stretching */
           object-fit: contain !important;
         }
 
@@ -154,6 +164,12 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           width: 100% !important;
           height: 100% !important;
           touch-action: none !important;
+          /* Hide any scrollbars */
+          scrollbar-width: none !important;
+        }
+
+        body.video-fullscreen-active::-webkit-scrollbar {
+          display: none !important;
         }
 
         .video-fullscreen-container .video-controls {

@@ -96,12 +96,25 @@ export async function enterAppImmersiveMode(): Promise<void> {
  * Enter immersive/fullscreen mode - hides both status bar and navigation bar
  * Uses @boengli/capacitor-fullscreen for true Android immersive mode
  * This is compatible with screen rotation on Android (including OPPO devices)
+ * 
+ * IMPORTANT: This function is aggressive about hiding system bars
+ * - Hides status bar first
+ * - Then activates immersive mode
+ * - Then hides status bar again to ensure it's truly hidden
  */
 export async function enterImmersiveFullscreen(): Promise<void> {
   if (!isNative()) return;
 
   try {
-    // On Android, use the fullscreen plugin for true immersive mode
+    // Step 1: Hide status bar FIRST before immersive mode
+    try {
+      await StatusBar.hide();
+      console.log('[StatusBar] Status bar hidden (step 1)');
+    } catch (e) {
+      console.log('[StatusBar] Failed to hide status bar (step 1):', e);
+    }
+
+    // Step 2: On Android, use the fullscreen plugin for true immersive mode
     if (Capacitor.getPlatform() === 'android') {
       const Fullscreen = await loadFullscreenPlugin();
       if (Fullscreen) {
@@ -112,14 +125,20 @@ export async function enterImmersiveFullscreen(): Promise<void> {
         } catch (e) {
           console.log('[StatusBar] Fullscreen plugin call failed:', e);
         }
-        // Small delay to let native side process
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for immersive mode to take effect
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Step 3: Re-hide status bar after immersive mode activation to ensure it stays hidden
+        try {
+          await StatusBar.hide();
+          console.log('[StatusBar] Status bar re-hidden after immersive mode (step 3)');
+        } catch (e) {
+          console.log('[StatusBar] Failed to re-hide status bar:', e);
+        }
       }
     }
 
-    // Also hide status bar for true fullscreen
-    await StatusBar.hide();
-    console.log('[StatusBar] Entered immersive mode - status bar hidden');
+    console.log('[StatusBar] Entered full immersive mode - all system bars hidden');
   } catch (error) {
     console.log('[StatusBar] Failed to enter immersive mode:', error);
   }
