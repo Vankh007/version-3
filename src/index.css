@@ -520,8 +520,9 @@ body.native-app-immersive {
 
 /* Watch page in portrait: player starts from top edge (no extra padding) */
 .watch-page-portrait-safe {
-  padding-top: 0;
-  background-color: black;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  background-color: black !important;
 }
 
 /* Watch page in landscape fullscreen: no padding at all */
