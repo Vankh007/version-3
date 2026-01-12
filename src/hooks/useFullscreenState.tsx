@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { lockToLandscape, unlockOrientation } from './useScreenOrientation';
 import { enterImmersiveMode, exitImmersiveMode } from './useImmersiveMode';
+import { Capacitor } from '@capacitor/core';
 
 // Global fullscreen state management for PWA
 let globalIsFullscreen = false;
@@ -13,6 +14,15 @@ export function getGlobalFullscreenState(): boolean {
 export function setGlobalFullscreenState(value: boolean): void {
   globalIsFullscreen = value;
   listeners.forEach(listener => listener(value));
+  
+  // Update body class for CSS targeting
+  if (Capacitor.isNativePlatform()) {
+    if (value) {
+      document.body.classList.add('native-video-fullscreen');
+    } else {
+      document.body.classList.remove('native-video-fullscreen');
+    }
+  }
 }
 
 /**
