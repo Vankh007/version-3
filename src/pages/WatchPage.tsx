@@ -785,25 +785,43 @@ const WatchPage = () => {
             <NativeBannerAdSlot placement="watch_banner" />
             
             {/* User Profile with Wallet Balance */}
-            <div className="px-4 flex items-center gap-3 py-2">
-              <Avatar className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} border-2 border-primary flex-shrink-0 cursor-pointer`} onClick={() => navigate('/dashboard')}>
-                <AvatarImage src={profileImageUrl || undefined} alt={userProfile?.username || user?.email || 'User'} />
-                <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
-                  {(userProfile?.username || user?.email || 'U').charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1 min-w-0">
-                <h1 className={`${isMobile ? 'text-sm' : 'text-base'} font-bold truncate`}>{userProfile?.username || user?.email?.split('@')[0] || 'Guest'}</h1>
-                <WalletSection iconClassName={isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} textClassName={isMobile ? 'text-xs' : 'text-sm'} />
+            <div className="px-4 py-2">
+              {/* Row 1: User Profile and Wallet */}
+              <div className="flex items-center gap-3">
+                <Avatar className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} border-2 border-primary flex-shrink-0 cursor-pointer`} onClick={() => navigate('/dashboard')}>
+                  <AvatarImage src={profileImageUrl || undefined} alt={userProfile?.username || user?.email || 'User'} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
+                    {(userProfile?.username || user?.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0">
+                  <h1 className={`${isMobile ? 'text-sm' : 'text-base'} font-bold truncate`}>{userProfile?.username || user?.email?.split('@')[0] || 'Guest'}</h1>
+                  <WalletSection iconClassName={isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} textClassName={isMobile ? 'text-xs' : 'text-sm'} />
+                </div>
+
+                {/* VIP and ActionButtons on same row for desktop */}
+                {!isMobile && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-8 px-2.5 text-sm gap-1 border-primary/50 text-primary hover:bg-primary/10" onClick={() => setShowSubscriptionDialog(true)}>
+                      <Crown className="h-3.5 w-3.5" />
+                      {hasActiveSubscription ? (<span className="flex items-center gap-1">VIP<Badge variant="secondary" className="h-4 px-1 text-xs bg-yellow-500/20 text-yellow-600">{remainingDays}d</Badge></span>) : 'VIP'}
+                    </Button>
+                    <ActionButtons contentId={content?.id} contentType={contentType as 'movie' | 'series'} episodeId={currentEpisode?.id} userId={user?.id} contentTitle={content?.title} tmdbId={id} seasonNumber={season ? parseInt(season) : undefined} episodeNumber={episode ? parseInt(episode) : undefined} />
+                  </>
+                )}
               </div>
 
-              <Button size="sm" variant="outline" className={`${isMobile ? 'h-7 px-2 text-xs' : 'h-8 px-2.5 text-sm'} gap-1 ${hasActiveSubscription ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-600' : 'border-primary/50 text-primary hover:bg-primary/10'}`} onClick={() => setShowSubscriptionDialog(true)}>
-                <Crown className={isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
-                {hasActiveSubscription ? (<span className="flex items-center gap-1">VIP<Badge variant="secondary" className={`${isMobile ? 'h-3.5 px-0.5 text-[9px]' : 'h-4 px-1 text-xs'} bg-yellow-500/20 text-yellow-600`}>{remainingDays}d</Badge></span>) : 'VIP'}
-              </Button>
-
-              <ActionButtons contentId={content?.id} contentType={contentType as 'movie' | 'series'} episodeId={currentEpisode?.id} userId={user?.id} contentTitle={content?.title} tmdbId={id} seasonNumber={season ? parseInt(season) : undefined} episodeNumber={episode ? parseInt(episode) : undefined} />
+              {/* Row 2: VIP + Action Buttons (Mobile only - aligned right) */}
+              {isMobile && (
+                <div className="flex items-center justify-end gap-1 mt-2">
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-primary/50 text-primary hover:bg-primary/10" onClick={() => setShowSubscriptionDialog(true)}>
+                    <Crown className="h-3 w-3" />
+                    {hasActiveSubscription ? (<span className="flex items-center gap-1">VIP<Badge variant="secondary" className="h-3.5 px-0.5 text-[9px] bg-yellow-500/20 text-yellow-600">{remainingDays}d</Badge></span>) : 'VIP'}
+                  </Button>
+                  <ActionButtons contentId={content?.id} contentType={contentType as 'movie' | 'series'} episodeId={currentEpisode?.id} userId={user?.id} contentTitle={content?.title} tmdbId={id} seasonNumber={season ? parseInt(season) : undefined} episodeNumber={episode ? parseInt(episode) : undefined} />
+                </div>
+              )}
             </div>
 
             {/* Cast Section - Portrait cards with actor name + character */}
