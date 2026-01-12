@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import ShortVideoPlayer from './ShortVideoPlayer';
-import { useScreenOrientation } from '@/hooks/useScreenOrientation';
 
 interface Short {
   id: string;
@@ -32,9 +31,6 @@ const MobileShortsFeed = () => {
   const [isScrolling, setIsScrolling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
-  
-  // Allow landscape orientation for video playback
-  useScreenOrientation(true);
 
   useEffect(() => {
     fetchShorts();
