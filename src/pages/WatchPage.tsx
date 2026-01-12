@@ -764,7 +764,7 @@ const WatchPage = () => {
   // Unified Responsive Layout - Single column on mobile/tablet, two column on desktop
   return (
     <>
-    <div className={`min-h-screen text-foreground transition-all duration-300 ease-in-out ${isNativeApp && useSingleColumnLayout ? 'bg-black' : 'bg-background'}`}>
+    <div className={`min-h-screen text-foreground transition-all duration-300 ease-in-out watch-page-full-container ${isNativeApp && useSingleColumnLayout ? 'bg-black' : 'bg-background'}`}>
       <SocialShareMeta title={content.title} description={content.overview || ''} image={content.backdrop_path || content.poster_path} type={contentType === 'movie' ? 'video.movie' : 'video.tv_show'} />
       <div className={`${useSingleColumnLayout ? 'flex flex-col' : 'flex h-screen overflow-hidden'}`}>
         {/* Left Column: Video + User Info + Cast - Full width on mobile/tablet, 55-65% on desktop */}
@@ -772,7 +772,7 @@ const WatchPage = () => {
           className={`flex-1 min-w-0 flex flex-col ${useSingleColumnLayout ? '' : 'overflow-hidden'}`} 
           style={useSingleColumnLayout ? {} : { flex: '1 1 60%', maxWidth: '65%', minWidth: '55%' }}
         >
-          {/* Video Player - Below status bar in portrait, full screen in landscape fullscreen */}
+          {/* Video Player - Full edge-to-edge, no status bar padding */}
           <div 
             className={`bg-black ${useSingleColumnLayout ? 'sticky top-0 z-50 watch-page-portrait-safe' : 'ipad-landscape-video'} ${isVideoFullscreen ? 'watch-page-fullscreen' : ''}`}
           >
