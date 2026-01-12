@@ -52,39 +52,41 @@ Add the following to `android/app/src/main/AndroidManifest.xml` inside the `<act
 3. Add to **Redirect URLs:** `com.plexkhmerzoon://auth/callback`
 4. Save changes
 
-### 6. Configure AdMob (Production)
+### 6. Configure AdMob from Admin Dashboard
 
-1. Create an AdMob account at https://admob.google.com
-2. Create apps for Android and iOS
-3. Get your App IDs and Ad Unit IDs
-4. Update the following files with your production IDs:
+**All AdMob settings are now controlled from your admin dashboard at `/admin/ads` under "Ads for App (AdMob)".**
 
-**src/hooks/useAdMob.tsx:**
-```typescript
-const AD_CONFIG = {
-  android: {
-    appId: 'ca-app-pub-YOUR_ANDROID_APP_ID',
-    banner: 'ca-app-pub-YOUR_BANNER_ID',
-    interstitial: 'ca-app-pub-YOUR_INTERSTITIAL_ID',
-    rewarded: 'ca-app-pub-YOUR_REWARDED_ID',
-  },
-  ios: {
-    // Same for iOS
-  }
-};
-```
+#### In the Admin Dashboard:
+1. Go to `/admin/ads` → "Ads for App (AdMob)" tab
+2. Click "AdMob Settings" sub-tab
+3. Enter your **Android App ID** (e.g., `ca-app-pub-XXXXXXXX~YYYYYYYY`)
+4. Enter your **iOS App ID** (e.g., `ca-app-pub-XXXXXXXX~ZZZZZZZZ`)
+5. Toggle "Enable Ads" and "Test Mode" as needed
 
-**For Android:** Add to `android/app/src/main/AndroidManifest.xml`:
+#### Create Ad Units:
+1. Go to "Ad Units" sub-tab
+2. Click "Create App Ad"
+3. Configure:
+   - **Name:** e.g., "Home Banner Android"
+   - **Ad Type:** Banner, Interstitial, Rewarded, etc.
+   - **Platform:** Android, iOS, or Both
+   - **Placement:** Where the ad appears in the app
+   - **Ad Unit ID:** Your AdMob ad unit ID
+   - **Test Mode:** Enable for testing
+
+#### For Android Native Config
+Add to `android/app/src/main/AndroidManifest.xml`:
 ```xml
 <meta-data
     android:name="com.google.android.gms.ads.APPLICATION_ID"
-    android:value="ca-app-pub-YOUR_APP_ID"/>
+    android:value="YOUR_ADMOB_APP_ID"/>
 ```
 
-**For iOS:** Add to `ios/App/App/Info.plist`:
+#### For iOS Native Config
+Add to `ios/App/App/Info.plist`:
 ```xml
 <key>GADApplicationIdentifier</key>
-<string>ca-app-pub-YOUR_APP_ID</string>
+<string>YOUR_ADMOB_APP_ID</string>
 ```
 
 ### 7. Run the App
@@ -96,6 +98,30 @@ npx cap run android
 # iOS
 npx cap run ios
 ```
+
+## AdMob Integration Details
+
+The native app fetches all AdMob settings from your Supabase database:
+
+| Table | Purpose |
+|-------|---------|
+| `app_ad_settings` | Global settings (enabled, test mode, app IDs) |
+| `app_ads` | Individual ad units with placements |
+
+### Supported Ad Types
+- **Banner:** Small ads at top/bottom of screen
+- **Interstitial:** Full-screen ads between content
+- **Rewarded:** Video ads that give users rewards
+- **Native:** Custom ads matching app design
+- **App Open:** Ads shown when app opens/resumes
+
+### Ad Placements
+- `home_banner` - Home screen banner
+- `watch_top_banner` - Above video player
+- `watch_bottom_banner` - Below video player
+- `episode_interstitial` - Between episodes
+- `reward_unlock` - Reward to unlock content
+- And more...
 
 ## Google OAuth Setup
 
@@ -123,6 +149,13 @@ After making changes in Lovable:
 - Check that the URL scheme matches exactly: `com.plexkhmerzoon`
 
 ### AdMob ads not showing
-- Ensure you're testing on a real device (emulators may have issues)
-- Verify your AdMob account is approved
-- Check that the Ad Unit IDs are correct for the platform
+- Check "Ads for App (AdMob)" settings in admin dashboard
+- Ensure "Enable Ads" is turned ON
+- Verify Ad Unit IDs are correct for the platform
+- Test on real device (emulators may have issues)
+- Check that ads are set to "Active" status
+
+### Settings not updating in app
+- The app caches settings on startup
+- Restart the app to fetch new settings
+- Or call `refreshAdSettings()` programmatically
