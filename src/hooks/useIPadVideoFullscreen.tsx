@@ -252,6 +252,11 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           await new Promise(resolve => setTimeout(resolve, 120));
           await lockToLandscape();
 
+          // EXTRA: On some Android devices the status/notification bar can re-appear after rotation.
+          // Re-apply hiding after the second lock.
+          await new Promise(resolve => setTimeout(resolve, 120));
+          await hideStatusBar();
+
           // Hide app UI chrome (BottomNav/Header) even if the device still shows system bars.
           applyPWAFullscreenStyles(true);
 
