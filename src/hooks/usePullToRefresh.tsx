@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useIsMobile } from './use-mobile';
 import { useIsTablet } from './use-tablet';
+import { Capacitor } from '@capacitor/core';
 
 interface UsePullToRefreshOptions {
   onRefresh: () => Promise<void>;
@@ -144,9 +145,11 @@ export const usePullToRefresh = ({
     };
   }, [isMobile, isTablet, pullDistance, threshold, resistance, onRefresh, isRefreshing, isAtTop, isInsideScrollableElement]);
 
+  const isNative = Capacitor.isNativePlatform();
+
   return {
     pullDistance,
     isRefreshing,
-    isEnabled: isMobile || isTablet,
+    isEnabled: isMobile || isTablet || isNative,
   };
 };
