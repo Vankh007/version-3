@@ -1574,9 +1574,8 @@ const VideoPlayer = ({
 
   return (
     <>
-    {/* Android native wrapper for top padding - hidden in fullscreen */}
-    <div className={isAndroidNative && !isFullscreen ? 'native-android-player-wrapper' : ''}>
-    <div 
+    {/* Video player container (native now uses PWA fullscreen, no extra wrapper) */}
+    <div
       ref={containerRef}
       className="relative bg-black group w-full aspect-video video-player-container video-player-safe-area"
       onMouseMove={handleMouseMove}
@@ -2156,8 +2155,8 @@ const VideoPlayer = ({
         </Button>
       )}
     </div>
-    {/* Close Android native wrapper */}
-    </div>
+
+    {paymentDialogs}
 
     {paymentDialogs}
     </>

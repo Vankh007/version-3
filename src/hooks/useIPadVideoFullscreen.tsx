@@ -1,9 +1,7 @@
 import { useState, useCallback, useRef, useEffect, RefObject } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { hideStatusBar, showStatusBar } from './useNativeStatusBar';
 import { setGlobalFullscreenState } from './useFullscreenState';
 import { lockToLandscape, lockToPortrait } from './useScreenOrientation';
-import { enterVideoFullscreen, exitVideoFullscreen } from './useImmersiveMode';
 
 interface UseIPadVideoFullscreenOptions {
   containerRef: RefObject<HTMLDivElement>;
@@ -237,33 +235,31 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           themeColorMeta.setAttribute('content', '#000000');
         }
 
-        // Native app: on Android devices (including OPPO A57) we MUST use the Web Fullscreen API
-        // to reliably hide the *system* navigation bar. We also keep the existing CSS fullscreen
-        // styles to hide app UI layers (header/bottom nav).
-        if (isNative) {
-          console.log('[iPadFS] Native fullscreen entry (fullscreen API + CSS)');
+        // Native app AND mobile browser: use PWA/CSS fullscreen approach
+        // This avoids OEM-specific status bar / immersive mode inconsistencies
+        if (isNative || (isMobile && !isPWA)) {
+          console.log('[iPadFS] Fullscreen entry via PWA/CSS approach');
 
-          await enterVideoFullscreen(container, async () => {
-            await lockToLandscape();
-          });
-
-          // Some OEM Android builds apply the orientation *after* the fullscreen transition.
-          // Do a second lock attempt to make landscape fullscreen much more reliable.
-          await new Promise(resolve => setTimeout(resolve, 120));
-          await lockToLandscape();
-
-          // EXTRA: On some Android devices the status/notification bar can re-appear after rotation.
-          // Re-apply hiding after the second lock.
-          await new Promise(resolve => setTimeout(resolve, 120));
-          await hideStatusBar();
-
-          // Hide app UI chrome (BottomNav/Header) even if the device still shows system bars.
           applyPWAFullscreenStyles(true);
+
+          // Try native fullscreen API to hide browser chrome
+          try {
+            if (container.requestFullscreen) {
+              await container.requestFullscreen();
+            } else if ((container as any).webkitRequestFullscreen) {
+              await (container as any).webkitRequestFullscreen();
+            }
+          } catch (e) {
+            console.log('[iPadFS] Fullscreen API not available, CSS only');
+          }
+
+          // Lock to landscape on native or mobile
+          await lockToLandscape();
 
           setIsFullscreen(true);
           await restorePlaybackState();
           cleanupGuard();
-        } else if (isMobile && !isPWA) {
+        } else if (isPWA || isPadDevice) {
           // Mobile web browser: try native fullscreen + orientation lock
           try {
             if (container.requestFullscreen) {
@@ -314,34 +310,37 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           themeColorMeta.setAttribute('content', isDarkMode ? '#0f1419' : '#ffffff');
         }
 
-        // Native app: exit using proper sequencing + exit fullscreen API
-        if (isNative) {
-          console.log('[iPadFS] Native fullscreen exit (fullscreen API + CSS)');
+        // Native app AND PWA container: exit CSS fullscreen
+        if (isNative || container.classList.contains('video-fullscreen-container')) {
+          console.log('[iPadFS] Fullscreen exit via PWA/CSS approach');
 
-          // Remove app UI hiding first, then exit fullscreen and restore portrait.
           applyPWAFullscreenStyles(false);
 
-          await exitVideoFullscreen(async () => {
-            await lockToPortrait();
-          });
+          // Exit native fullscreen if active
+          try {
+            if (document.fullscreenElement) {
+              await document.exitFullscreen();
+            } else if ((document as any).webkitExitFullscreen) {
+              await (document as any).webkitExitFullscreen();
+            }
+          } catch (e) {
+            console.log('[iPadFS] Exit fullscreen failed', e);
+          }
 
-          setIsFullscreen(false);
-          await restorePlaybackState();
-          cleanupGuard();
-        } else if (container.classList.contains('video-fullscreen-container')) {
-          applyPWAFullscreenStyles(false);
-          setIsFullscreen(false);
           await lockToPortrait();
+
+          setIsFullscreen(false);
           await restorePlaybackState();
           cleanupGuard();
         } else {
+          // Desktop or fallback
           try {
             if (document.exitFullscreen) {
               await document.exitFullscreen();
             } else if ((document as any).webkitExitFullscreen) {
               await (document as any).webkitExitFullscreen();
             }
-            
+
             await lockToPortrait();
             cleanupGuard();
           } catch (e) {
@@ -371,12 +370,7 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
       
       if (!containerRef.current?.classList.contains('video-fullscreen-container')) {
         setIsFullscreen(isNativeFS);
-        
-        if (isNativeFS) {
-          hideStatusBar();
-        } else {
-          showStatusBar();
-        }
+        // Status bar handled by CSS fullscreen (no native calls)
       }
     };
 
