@@ -540,3 +540,28 @@ body.native-video-fullscreen {
 body.native-video-fullscreen .watch-page-portrait-safe {
   padding-top: 0 !important;
 }
+
+/* Video fullscreen active state - no safe area padding */
+body.video-fullscreen-active {
+  padding: 0 !important;
+  margin: 0 !important;
+  /* Override safe area insets in fullscreen */
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Ensure video container fills screen completely in fullscreen */
+.video-fullscreen-container {
+  /* Override any safe area constraints */
+  padding: env(safe-area-inset-top, 0) 0 0 0 !important;
+  padding: 0 !important;
+}
+
+/* Video element in fullscreen - maintain 16:9 aspect ratio */
+.video-fullscreen-container video {
+  object-fit: contain !important;
+  width: 100% !important;
+  height: 100% !important;
+}
