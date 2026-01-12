@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { lockToLandscape, unlockOrientation } from './useScreenOrientation';
-import { enterImmersiveMode, exitImmersiveMode } from './useImmersiveMode';
-import { Capacitor } from '@capacitor/core';
 
 // Global fullscreen state management for PWA
 let globalIsFullscreen = false;
@@ -14,15 +11,6 @@ export function getGlobalFullscreenState(): boolean {
 export function setGlobalFullscreenState(value: boolean): void {
   globalIsFullscreen = value;
   listeners.forEach(listener => listener(value));
-  
-  // Update body class for CSS targeting
-  if (Capacitor.isNativePlatform()) {
-    if (value) {
-      document.body.classList.add('native-video-fullscreen');
-    } else {
-      document.body.classList.remove('native-video-fullscreen');
-    }
-  }
 }
 
 /**
@@ -44,7 +32,7 @@ export function useFullscreenState(): boolean {
 
 /**
  * PWA-compatible hook to handle fullscreen for video/iframe embeds
- * Uses Web Fullscreen API and Screen Orientation API
+ * Uses Web Fullscreen API
  */
 export function useIframeFullscreenHandler() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -52,20 +40,12 @@ export function useIframeFullscreenHandler() {
   const handleEnterFullscreen = useCallback(async () => {
     setIsFullscreen(true);
     setGlobalFullscreenState(true);
-    
-    // Try to lock to landscape for video viewing
-    await lockToLandscape();
-    
     console.log('[PWA] Fullscreen entered');
   }, []);
 
   const handleExitFullscreen = useCallback(async () => {
     setIsFullscreen(false);
     setGlobalFullscreenState(false);
-    
-    // Unlock orientation when exiting fullscreen
-    await unlockOrientation();
-    
     console.log('[PWA] Fullscreen exited');
   }, []);
 
@@ -113,10 +93,18 @@ export async function toggleFullscreen(element?: HTMLElement): Promise<boolean> 
 
   try {
     if (isCurrentlyFullscreen) {
-      await exitImmersiveMode();
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        await (document as any).webkitExitFullscreen();
+      }
       return false;
     } else {
-      await enterImmersiveMode(target);
+      if (target.requestFullscreen) {
+        await target.requestFullscreen();
+      } else if ((target as any).webkitRequestFullscreen) {
+        await (target as any).webkitRequestFullscreen();
+      }
       return true;
     }
   } catch (error) {
