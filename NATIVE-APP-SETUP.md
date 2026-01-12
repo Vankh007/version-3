@@ -159,3 +159,29 @@ After making changes in Lovable:
 - The app caches settings on startup
 - Restart the app to fetch new settings
 - Or call `refreshAdSettings()` programmatically
+
+## Native App Components
+
+### MobileWatch Page
+The `src/pages/MobileWatch.tsx` provides a mobile-optimized video player experience for native apps with:
+- Native ExoPlayer support for Android (uses `useExoPlayer` hook)
+- Native AdMob banner ads via `NativeBannerAdSlot` component
+- VIP membership panel via `MobileVIPPanel` component
+- Status bar safe area (35px top padding for video player)
+
+### useExoPlayer Hook
+Located at `src/hooks/useExoPlayer.tsx`:
+- `isExoPlayerAvailable()` - Checks if running on Android native app
+- `playWithExoPlayer(url, title, subtitle)` - Opens video in native player
+
+### NativeBannerAdSlot Component
+Located at `src/components/ads/NativeBannerAdSlot.tsx`:
+- Displays AdMob banner ads in native apps only
+- Configured via admin dashboard placements
+- Automatically hides on web/non-native platforms
+
+### MobileVIPPanel Component
+Located at `src/components/MobileVIPPanel.tsx`:
+- Bottom sheet for VIP membership purchase
+- Integrated with wallet and KHQR payment
+- Mobile-optimized UI for native apps
