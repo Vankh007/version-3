@@ -7,7 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, AlertCircle, Wallet, QrCode, Download, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import logo from '@/assets/khmerzoon.png';
+import { useSiteSettings } from '@/contexts/SiteSettingsContext';
+import defaultLogo from '@/assets/khmerzoon.png';
 
 interface KHQRPaymentDialogProps {
   isOpen: boolean;
@@ -17,6 +18,10 @@ interface KHQRPaymentDialogProps {
 
 export const KHQRPaymentDialog = ({ isOpen, onClose, onSuccess }: KHQRPaymentDialogProps) => {
   const { user } = useAuth();
+  const { logos } = useSiteSettings();
+  
+  // Use logo from site settings, fallback to default
+  const logo = logos?.dark_logo || logos?.light_logo || defaultLogo;
   const [amount, setAmount] = useState('10');
   const [loading, setLoading] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
