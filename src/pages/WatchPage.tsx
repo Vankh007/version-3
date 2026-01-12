@@ -11,7 +11,6 @@ import { useIsTablet } from "@/hooks/use-tablet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsTabletLandscape } from "@/hooks/use-tablet-landscape";
 import { CommentsSection } from "@/components/CommentsSection";
-import { useDeviceSession } from "@/hooks/useDeviceSession";
 import { DeviceLimitWarning } from "@/components/DeviceLimitWarning";
 import { useSwipeScroll } from "@/hooks/useSwipeScroll";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,9 +26,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import CastMemberDialog from "@/components/movie/CastMemberDialog";
 import { useProfileImage } from "@/hooks/useProfileImage";
 import { useContentData, Content } from "@/hooks/useContentData";
-import { NativeBannerAdSlot } from "@/components/ads/NativeBannerAdSlot";
+import AdSlot from "@/components/ads/AdSlot";
 import { useIframeFullscreenHandler, useFullscreenState } from "@/hooks/useFullscreenState";
-import { Capacitor } from "@capacitor/core";
 
 interface Episode {
   id: string;
@@ -429,15 +427,14 @@ const WatchPage = () => {
     };
   }, [isIPadDevice]);
 
-  const { 
-    sessions, 
-    currentDeviceId, 
-    canStream, 
-    maxDevices, 
-    loading: deviceSessionLoading,
-    signOutDevice,
-    signOutAllDevices 
-  } = useDeviceSession();
+  // Simple device session stub for web
+  const sessions: any[] = [];
+  const currentDeviceId = '';
+  const canStream = true;
+  const maxDevices = 3;
+  const deviceSessionLoading = false;
+  const signOutDevice = async () => {};
+  const signOutAllDevices = async () => {};
 
   const contentType = type === 'movie' ? 'movie' : 'series';
   const { content, seasons, episodes: rawEpisodes, videoSources: allVideoSources, loading, error } = useContentData(id, contentType as 'movie' | 'series');
@@ -761,8 +758,8 @@ const WatchPage = () => {
   // Determine if we should use single-column layout (mobile/tablet/iPad portrait)
   const useSingleColumnLayout = isMobile || isTablet || isIPadPortrait;
 
-  // Check if running on native platform
-  const isNativeApp = Capacitor.isNativePlatform();
+  // Web-only mode
+  const isNativeApp = false;
 
   // Unified Responsive Layout - Single column on mobile/tablet, two column on desktop
   return (
@@ -784,8 +781,8 @@ const WatchPage = () => {
             
           {/* Scrollable Content Below Player */}
           <div className={useSingleColumnLayout ? 'flex-1' : 'flex-1 overflow-y-auto'}>
-            {/* Native Banner Ad - Below Player */}
-            <NativeBannerAdSlot placement="watch_banner" />
+            {/* Web Banner Ad - Below Player */}
+            <AdSlot placement="watch_banner" pageLocation="watch" />
             
             {/* User Profile with Wallet Balance */}
             <div className="px-4 py-2">
@@ -848,16 +845,15 @@ const WatchPage = () => {
               ) : null}
             </div>
 
-            {/* AdMob Banner - Between Cast and Tabs (Desktop only) */}
+            {/* Ad Banner - Between Cast and Tabs (Desktop only) */}
             {!useSingleColumnLayout && (
-              <NativeBannerAdSlot placement="watch_cast_tabs_banner" className="mx-4 mb-2" />
+              <AdSlot placement="watch_cast_tabs_banner" pageLocation="watch" className="mx-4 mb-2" />
             )}
 
-            {/* Single Column Layout: Sidebar content moves here below Cast */}
             {useSingleColumnLayout && (
               <div className="px-4 py-3 space-y-4">
-                {/* AdMob Banner - Between Cast and Tabs */}
-                <NativeBannerAdSlot placement="watch_cast_tabs_banner" className="!px-0" />
+                {/* Ad Banner - Between Cast and Tabs */}
+                <AdSlot placement="watch_cast_tabs_banner" pageLocation="watch" />
 
                 {/* Collapsible Tabs Section */}
                 <CollapsibleTabsSection
