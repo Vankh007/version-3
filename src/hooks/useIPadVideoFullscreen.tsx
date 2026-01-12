@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, RefObject } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { hideStatusBar, showStatusBar } from './useNativeStatusBar';
+import { enterImmersiveFullscreen, exitImmersiveFullscreen } from './useNativeStatusBar';
 import { setGlobalFullscreenState } from './useFullscreenState';
 import { lockToLandscape, lockToPortrait } from './useScreenOrientation';
 import { enterVideoFullscreen, exitVideoFullscreen } from './useImmersiveMode';
@@ -363,14 +363,16 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
         (document as any).mozFullScreenElement ||
         (document as any).msFullscreenElement
       );
-      
+
       if (!containerRef.current?.classList.contains('video-fullscreen-container')) {
         setIsFullscreen(isNativeFS);
-        
+
         if (isNativeFS) {
-          hideStatusBar();
+          // Fullscreen video: hide BOTH status + nav bars
+          enterImmersiveFullscreen();
         } else {
-          showStatusBar();
+          // Back to app default (nav hidden, status visible)
+          exitImmersiveFullscreen();
         }
       }
     };
