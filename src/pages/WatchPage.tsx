@@ -82,36 +82,36 @@ const CollapsibleTabsSection = ({
   return (
     <Tabs defaultValue="episodes" className="w-full">
       {/* Tabs - Text only, no icons as per reference */}
-      <TabsList className="w-full justify-around bg-transparent border-b rounded-none h-auto p-0">
+      <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0">
         {isSeriesContent && (
           <TabsTrigger 
             value="episodes"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 py-2 text-sm"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 py-1.5 text-xs sm:text-sm sm:px-3 sm:py-2"
           >
             Episodes
           </TabsTrigger>
         )}
         <TabsTrigger 
           value="foryou"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 py-2 text-sm"
+          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 py-1.5 text-xs sm:text-sm sm:px-3 sm:py-2"
         >
           For You
         </TabsTrigger>
         <TabsTrigger 
           value="comments"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 py-2 text-sm"
+          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 py-1.5 text-xs sm:text-sm sm:px-3 sm:py-2"
         >
           Comments
         </TabsTrigger>
         <TabsTrigger 
           value="detail"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 py-2 text-sm"
+          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 py-1.5 text-xs sm:text-sm sm:px-3 sm:py-2"
         >
           Detail
         </TabsTrigger>
         <TabsTrigger 
           value="home"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 py-2 text-sm"
+          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 py-1.5 text-xs sm:text-sm sm:px-3 sm:py-2"
         >
           Home
         </TabsTrigger>
