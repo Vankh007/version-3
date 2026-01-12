@@ -506,3 +506,36 @@ All colors MUST be HSL.
   width: 100%;
 }
 
+/* ============================================
+   APP-WIDE IMMERSIVE MODE STYLES
+   Navigation bar hidden, content fills entire screen
+   ============================================ */
+
+/* App content fills entire screen (edge-to-edge) */
+body.native-app-immersive {
+  /* Content draws behind status bar */
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Watch page in portrait: player below status bar */
+.watch-page-portrait-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  background-color: black;
+}
+
+/* Watch page in landscape fullscreen: no padding at all */
+.watch-page-fullscreen {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Native app - hide all system UI during video fullscreen */
+body.native-video-fullscreen {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+body.native-video-fullscreen .watch-page-portrait-safe {
+  padding-top: 0 !important;
+}

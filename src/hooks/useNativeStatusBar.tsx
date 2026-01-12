@@ -7,6 +7,7 @@
  * with transparent status bar and hidden navigation bar
  */
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
@@ -57,6 +58,41 @@ export async function initEdgeToEdge(): Promise<void> {
 }
 
 /**
+ * Enter app-wide immersive mode - hides navigation bar, keeps status bar visible
+ * Content fills entire screen including area behind status bar
+ * Navigation bar is completely hidden for immersive experience
+ */
+export async function enterAppImmersiveMode(): Promise<void> {
+  if (!isNative()) return;
+
+  try {
+    if (Capacitor.getPlatform() === 'android') {
+      const Fullscreen = await loadFullscreenPlugin();
+      if (Fullscreen) {
+        try {
+          // Enter immersive mode to hide navigation bar
+          Fullscreen.activateImmersiveMode();
+          console.log('[StatusBar] App immersive mode activated - nav bar hidden');
+        } catch (e) {
+          console.log('[StatusBar] Immersive mode activation failed:', e);
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    // Keep status bar visible but overlaying content
+    await StatusBar.setOverlaysWebView({ overlay: true });
+    if (Capacitor.getPlatform() === 'android') {
+      await StatusBar.setBackgroundColor({ color: '#00000000' });
+    }
+    await StatusBar.show();
+    
+  } catch (error) {
+    console.log('[StatusBar] Failed to enter app immersive mode:', error);
+  }
+}
+
+/**
  * Enter immersive/fullscreen mode - hides both status bar and navigation bar
  * Uses @boengli/capacitor-fullscreen for true Android immersive mode
  * This is compatible with screen rotation on Android (including OPPO devices)
@@ -78,11 +114,10 @@ export async function enterImmersiveFullscreen(): Promise<void> {
         }
         // Small delay to let native side process
         await new Promise(resolve => setTimeout(resolve, 100));
-        return;
       }
     }
 
-    // Fallback: just hide status bar (iOS or if plugin not available)
+    // Also hide status bar for true fullscreen
     await StatusBar.hide();
     console.log('[StatusBar] Entered immersive mode - status bar hidden');
   } catch (error) {
@@ -111,8 +146,8 @@ export async function exitImmersiveFullscreen(): Promise<void> {
         }
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Restore edge-to-edge mode after exiting immersive
-        await initEdgeToEdge();
+        // Re-enter app immersive mode (nav bar hidden, status bar visible)
+        await enterAppImmersiveMode();
         return;
       }
     }
@@ -232,13 +267,22 @@ export async function setStatusBarBackgroundColor(color: string): Promise<void> 
 
 /**
  * Hook for managing status bar appearance
- * Initializes edge-to-edge mode on mount for native apps
+ * Initializes app-wide immersive mode (nav bar hidden) on native platforms
+ * Watch page in portrait mode: shows status bar, content below it
+ * Fullscreen video: completely hidden status bar and nav bar
  */
 export function useNativeStatusBar() {
+  const location = useLocation();
+  
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      // Initialize edge-to-edge display on app start
-      initEdgeToEdge();
-    }
-  }, []);
+    if (!Capacitor.isNativePlatform()) return;
+    
+    const isWatchPage = /^\/watch(\/|$)/.test(location.pathname);
+    
+    // Enter app-wide immersive mode on init (nav bar hidden, status bar visible)
+    // This makes content fill entire screen including behind status bar
+    enterAppImmersiveMode();
+    
+    console.log('[StatusBar] Initialized for path:', location.pathname, 'isWatchPage:', isWatchPage);
+  }, [location.pathname]);
 }

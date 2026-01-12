@@ -7,9 +7,13 @@
  * 1. First lock orientation
  * 2. Wait for orientation to settle
  * 3. Then enter immersive mode
+ * 
+ * APP-WIDE IMMERSIVE MODE:
+ * The app runs in immersive mode by default (nav bar hidden, status bar visible)
+ * Video fullscreen goes to FULL immersive (both bars hidden)
  */
 import { Capacitor } from '@capacitor/core';
-import { hideStatusBar, showStatusBar, enterImmersiveFullscreen, exitImmersiveFullscreen } from './useNativeStatusBar';
+import { hideStatusBar, showStatusBar, enterImmersiveFullscreen, exitImmersiveFullscreen, enterAppImmersiveMode } from './useNativeStatusBar';
 
 /**
  * Enter immersive fullscreen mode using Web Fullscreen API
@@ -47,21 +51,12 @@ export async function enterImmersiveMode(element?: HTMLElement): Promise<void> {
 }
 
 /**
- * Exit immersive mode
+ * Exit immersive mode - returns to app-wide immersive mode (nav hidden, status visible)
  */
 export async function exitImmersiveMode(): Promise<void> {
   const isNative = Capacitor.isNativePlatform();
   
-  // Exit native immersive mode
-  if (isNative) {
-    try {
-      await exitImmersiveFullscreen();
-    } catch (error) {
-      console.log('[Immersive] Native exit failed:', error);
-    }
-  }
-  
-  // Exit web fullscreen
+  // Exit web fullscreen first
   try {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
@@ -72,9 +67,18 @@ export async function exitImmersiveMode(): Promise<void> {
     } else if ((document as any).msExitFullscreen) {
       await (document as any).msExitFullscreen();
     }
-    console.log('[Immersive] Exited immersive mode');
+    console.log('[Immersive] Exited web fullscreen');
   } catch (error) {
     console.log('[Immersive] Exit fullscreen failed:', error);
+  }
+  
+  // Return to app-wide immersive mode (nav bar hidden, status bar visible)
+  if (isNative) {
+    try {
+      await enterAppImmersiveMode();
+    } catch (error) {
+      console.log('[Immersive] Return to app immersive failed:', error);
+    }
   }
 }
 
@@ -93,6 +97,7 @@ export function isInImmersiveMode(): boolean {
 /**
  * Combined function for video fullscreen:
  * Enters fullscreen with proper sequencing for all Android versions
+ * Goes to FULL immersive mode (both status bar and nav bar hidden)
  * 
  * @param container - The container element to make fullscreen
  * @param onOrientationLocked - Callback to lock orientation BEFORE entering immersive mode
@@ -111,8 +116,8 @@ export async function enterVideoFullscreen(
       await new Promise(resolve => setTimeout(resolve, 150));
     }
     
-    // STEP 2: Enter immersive mode (hide status bar)
-    await hideStatusBar();
+    // STEP 2: Enter FULL immersive mode (hide BOTH status bar AND nav bar)
+    await enterImmersiveFullscreen();
     
     // STEP 3: Small delay before fullscreen request
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -146,6 +151,7 @@ export async function enterVideoFullscreen(
 /**
  * Combined function for exiting video fullscreen:
  * Exits with proper sequencing for all Android versions
+ * Returns to app-wide immersive mode (nav bar hidden, status bar visible)
  * 
  * @param onOrientationUnlocked - Callback to unlock/reset orientation AFTER exiting immersive mode
  */
@@ -173,8 +179,8 @@ export async function exitVideoFullscreen(
     // STEP 2: Wait for fullscreen exit to complete
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // STEP 3: Show status bar
-    await showStatusBar();
+    // STEP 3: Return to app-wide immersive mode (nav hidden, status visible)
+    await enterAppImmersiveMode();
     
     // STEP 4: Reset orientation (caller provides this)
     if (onOrientationUnlocked) {

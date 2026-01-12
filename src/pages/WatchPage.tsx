@@ -29,6 +29,7 @@ import { useProfileImage } from "@/hooks/useProfileImage";
 import { useContentData, Content } from "@/hooks/useContentData";
 import { NativeBannerAdSlot } from "@/components/ads/NativeBannerAdSlot";
 import { useIframeFullscreenHandler, useFullscreenState } from "@/hooks/useFullscreenState";
+import { Capacitor } from "@capacitor/core";
 
 interface Episode {
   id: string;
@@ -771,10 +772,9 @@ const WatchPage = () => {
           className={`flex-1 min-w-0 flex flex-col ${useSingleColumnLayout ? '' : 'overflow-hidden'}`} 
           style={useSingleColumnLayout ? {} : { flex: '1 1 60%', maxWidth: '65%', minWidth: '55%' }}
         >
-          {/* Video Player - Below status bar with safe area */}
+          {/* Video Player - Below status bar in portrait, full screen in landscape fullscreen */}
           <div 
-            className={useSingleColumnLayout ? 'sticky top-0 z-50 bg-black' : 'bg-black ipad-landscape-video'}
-            style={useSingleColumnLayout ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : { padding: 0, margin: 0 }}
+            className={`bg-black ${useSingleColumnLayout ? 'sticky top-0 z-50 watch-page-portrait-safe' : 'ipad-landscape-video'} ${isVideoFullscreen ? 'watch-page-fullscreen' : ''}`}
           >
             {videoPlayerElement}
           </div>
