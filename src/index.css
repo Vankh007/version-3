@@ -568,23 +568,11 @@ body.native-app-immersive {
   margin-top: 0 !important;
 }
 
-/* Watch page in portrait: player starts BELOW status bar notification area */
+/* Watch page in portrait: player starts from top edge (no extra padding) */
 .watch-page-portrait-safe {
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: 0 !important;
   margin-top: 0 !important;
   background-color: black !important;
-}
-
-/* Native app - add status bar height to watch page in portrait */
-body.native-app .watch-page-portrait-safe {
-  padding-top: 28px !important; /* Approximate status bar height on most devices */
-}
-
-/* Taller status bars (e.g., iPhone notch, Android dynamic island) */
-@supports (padding-top: env(safe-area-inset-top)) {
-  body.native-app .watch-page-portrait-safe {
-    padding-top: max(28px, env(safe-area-inset-top, 28px)) !important;
-  }
 }
 
 /* Watch page in landscape: no padding at all, video fills screen */
