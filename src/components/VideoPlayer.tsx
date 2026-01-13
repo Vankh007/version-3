@@ -1865,8 +1865,14 @@ const VideoPlayer = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={togglePlayPause}
-                className={`h-16 w-16 rounded-full text-white transition-all hover:scale-105 pointer-events-auto ${showCenterIcon ? 'animate-in zoom-in-95 duration-200' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('[CenterPlayBtn] onClick triggered, isPlaying:', isPlaying);
+                  togglePlayPause();
+                }}
+                className={`h-16 w-16 rounded-full text-white transition-all hover:scale-105 pointer-events-auto z-[100] ${showCenterIcon ? 'animate-in zoom-in-95 duration-200' : ''}`}
+                style={{ pointerEvents: 'auto' }}
               >
                 {isPlaying ? <Pause className="h-7 w-7" fill="currentColor" /> : <Play className="h-7 w-7 ml-0.5" fill="currentColor" />}
               </Button>
@@ -1877,8 +1883,11 @@ const VideoPlayer = ({
 
       {/* Bottom Controls */}
       {sourceType !== "embed" && sourceType !== "iframe" && !allSourcesMobileOnly && !allSourcesWebOnly && !isCurrentServerRestricted && (
-        <div className={`absolute inset-0 z-40 transition-opacity duration-300 pointer-events-none ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
+        <div 
+          className={`absolute inset-0 z-[90] transition-opacity duration-300 pointer-events-none ${showControls ? 'opacity-100' : 'opacity-0'}`}
+          data-video-control="true"
+        >
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-auto" data-video-control="true">
             {/* Progress Bar */}
             <div className="px-2 sm:px-4 pb-1.5 sm:pb-2">
               <div className="relative h-1 sm:h-1.5 bg-white/20 rounded-full cursor-pointer group/progress">
@@ -1898,7 +1907,18 @@ const VideoPlayer = ({
               <div className="flex items-center justify-between gap-1 sm:gap-2">
                 {/* Left Controls */}
                 <div className="flex items-center gap-0.5 sm:gap-2">
-                  <Button variant="ghost" size="icon" onClick={togglePlayPause} className="h-7 w-7 sm:h-9 sm:w-9 text-white hover:bg-white/10">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[PlayPauseBtn] onClick triggered, isPlaying:', isPlaying);
+                      togglePlayPause();
+                    }} 
+                    className="h-7 w-7 sm:h-9 sm:w-9 text-white hover:bg-white/10 z-[100]"
+                    style={{ pointerEvents: 'auto' }}
+                  >
                     {isPlaying ? <Pause className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" /> : <Play className="h-4 w-4 sm:h-5 sm:w-5 ml-0.5" fill="currentColor" />}
                   </Button>
                   
@@ -1968,7 +1988,7 @@ const VideoPlayer = ({
                     <PictureInPicture className="h-5 w-5" />
                   </Button>
 
-                  {/* Fullscreen Toggle Button - Enhanced for iPad PWA */}
+                  {/* Fullscreen Toggle Button - Enhanced for native + PWA */}
                   <Button 
                     variant="ghost" 
                     size="icon"
@@ -1976,27 +1996,16 @@ const VideoPlayer = ({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // Avoid double-triggering from both click and touchend
-                      if (!(e.nativeEvent as any).fromTouch) {
-                        toggleFullscreen();
-                      }
+                      console.log('[FullscreenBtn] onClick triggered, isFullscreen:', isFullscreen);
+                      toggleFullscreen();
                     }}
-                    onTouchStart={(e) => {
-                      // Mark this as a touch event to prevent click from also firing
-                      (e.nativeEvent as any).fromTouch = true;
-                    }}
-                    onTouchEnd={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Use setTimeout to ensure touch is processed properly on iPad
-                      setTimeout(() => toggleFullscreen(), 0);
-                    }}
-                    className={`h-8 w-8 sm:h-9 sm:w-9 text-white hover:bg-white/10 active:bg-white/20 touch-manipulation select-none ${
+                    className={`h-8 w-8 sm:h-9 sm:w-9 text-white hover:bg-white/10 active:bg-white/20 touch-manipulation select-none z-[100] ${
                       isFullscreenTransitioning ? 'opacity-50 cursor-wait' : ''
                     }`}
                     style={{ 
                       WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation'
+                      touchAction: 'manipulation',
+                      pointerEvents: 'auto'
                     }}
                   >
                     {isFullscreen ? <Minimize className="h-5 w-5 sm:h-5 sm:w-5" /> : <Maximize className="h-5 w-5 sm:h-5 sm:w-5" />}
