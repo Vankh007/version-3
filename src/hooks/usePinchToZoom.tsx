@@ -92,9 +92,32 @@ export const usePinchToZoom = ({
     video.style.transformOrigin = 'center center';
   }, [containerRef, videoRef]);
 
+  // Check if touch is on a control element (buttons, sliders, etc.)
+  const isTouchOnControl = useCallback((e: TouchEvent): boolean => {
+    const target = e.target as HTMLElement;
+    if (!target) return false;
+    
+    // Check if target or any parent is a control element
+    const controlSelectors = [
+      'button', '[role="button"]', '[role="slider"]', 
+      '.video-controls', '[data-video-control]',
+      '.pointer-events-auto'
+    ];
+    
+    for (const selector of controlSelectors) {
+      if (target.matches(selector) || target.closest(selector)) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
   // Handle touch start
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!enabled || !isFullscreen || !isTouchDevice()) return;
+    
+    // Don't intercept touches on controls
+    if (isTouchOnControl(e)) return;
 
     // Double tap to reset zoom
     const now = Date.now();
@@ -133,11 +156,14 @@ export const usePinchToZoom = ({
         currentY: translateY
       };
     }
-  }, [enabled, isFullscreen, isTouchDevice, scale, translateX, translateY, getDistance, getCenter, resetZoom]);
+  }, [enabled, isFullscreen, isTouchDevice, isTouchOnControl, scale, translateX, translateY, getDistance, getCenter, resetZoom]);
 
   // Handle touch move
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!enabled || !isFullscreen || !touchStateRef.current) return;
+    
+    // Don't intercept if not in an active gesture
+    if (!isPinchingRef.current && !isPanningRef.current) return;
 
     if (e.touches.length === 2 && isPinchingRef.current) {
       e.preventDefault();

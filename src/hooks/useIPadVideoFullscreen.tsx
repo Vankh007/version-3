@@ -194,8 +194,14 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           touch-action: none !important;
         }
 
-        .video-fullscreen-container .video-controls {
+        .video-fullscreen-container .video-controls,
+        .video-fullscreen-container [data-video-control="true"] {
           z-index: 100000 !important;
+          pointer-events: auto !important;
+        }
+        
+        .video-fullscreen-container button {
+          pointer-events: auto !important;
         }
         
         body.video-fullscreen-active nav,
