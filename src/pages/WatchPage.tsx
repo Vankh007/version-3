@@ -767,7 +767,7 @@ const WatchPage = () => {
   // Unified Responsive Layout - Single column on mobile/tablet, two column on desktop
   return (
     <>
-    <div className={`min-h-screen text-foreground transition-all duration-300 ease-in-out ${isNativeApp && useSingleColumnLayout ? 'bg-black' : 'bg-background'}`}>
+    <div className="min-h-screen bg-background text-foreground transition-all duration-300 ease-in-out">
       <SocialShareMeta title={content.title} description={content.overview || ''} image={content.backdrop_path || content.poster_path} type={contentType === 'movie' ? 'video.movie' : 'video.tv_show'} />
       <div className={`${useSingleColumnLayout ? 'flex flex-col' : 'flex h-screen overflow-hidden'}`}>
         {/* Left Column: Video + User Info + Cast - Full width on mobile/tablet, 55-65% on desktop */}
