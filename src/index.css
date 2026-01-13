@@ -518,14 +518,26 @@ All colors MUST be HSL.
     margin: 0 !important;
   }
   
-  /* iPad landscape - constrain video to fit properly */
+  /* Landscape - constrain video container to viewport */
   .video-player-container {
     max-height: 100vh !important;
+    max-height: 100dvh !important;
     max-width: 100vw !important;
+    max-width: 100dvw !important;
+  }
+  
+  /* Landscape video element - contain within bounds */
+  .video-player-container video,
+  .video-player-safe-area video {
+    object-fit: contain !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    max-width: 100vw !important;
+    max-width: 100dvw !important;
   }
 }
 
-/* iPad specific - ensure video doesn't overflow screen in landscape */
+/* iPad/Tablet specific - ensure video doesn't overflow screen in landscape */
 @media screen and (min-width: 768px) and (orientation: landscape) {
   .native-android-player-wrapper,
   .watch-page-portrait-safe {
@@ -533,12 +545,14 @@ All colors MUST be HSL.
     margin: 0 !important;
   }
   
-  /* iPad video sizing - fit within screen bounds */
+  /* iPad/Tablet video sizing - fit within screen bounds */
   .video-player-container video,
   .video-player-safe-area video {
     object-fit: contain !important;
     max-height: 100vh !important;
+    max-height: 100dvh !important;
     max-width: 100vw !important;
+    max-width: 100dvw !important;
   }
 }
 

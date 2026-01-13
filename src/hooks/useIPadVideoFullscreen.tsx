@@ -121,6 +121,7 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
       style.id = 'video-fullscreen-styles';
       
       style.textContent = `
+        /* Fullscreen container - fixed position, fills entire screen */
         .video-fullscreen-container {
           position: fixed !important;
           top: 0 !important;
@@ -128,6 +129,7 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           right: 0 !important;
           bottom: 0 !important;
           width: 100vw !important;
+          width: 100dvw !important;
           height: 100vh !important;
           height: 100dvh !important;
           z-index: 99999 !important;
@@ -137,23 +139,50 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          overflow: hidden !important;
         }
 
+        /* Video element - contain within screen bounds, never overflow */
         .video-fullscreen-container video {
           width: 100% !important;
           height: 100% !important;
           max-width: 100vw !important;
+          max-width: 100dvw !important;
           max-height: 100vh !important;
           max-height: 100dvh !important;
           object-fit: contain !important;
         }
         
-        /* iPad specific - ensure video fits within screen bounds */
+        /* Native app landscape fullscreen - critical sizing fix */
+        @media screen and (orientation: landscape) {
+          .video-fullscreen-container {
+            width: 100vw !important;
+            width: 100dvw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          
+          .video-fullscreen-container video {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100vw !important;
+            max-width: 100dvw !important;
+            max-height: 100vh !important;
+            max-height: 100dvh !important;
+            object-fit: contain !important;
+          }
+        }
+        
+        /* iPad/Tablet specific - ensure video fits within screen bounds */
         @media screen and (min-width: 768px) {
           .video-fullscreen-container video {
             object-fit: contain !important;
             max-height: 100vh !important;
+            max-height: 100dvh !important;
             max-width: 100vw !important;
+            max-width: 100dvw !important;
           }
         }
 

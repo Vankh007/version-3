@@ -4,11 +4,13 @@ const config: CapacitorConfig = {
   appId: 'com.plexkhmerzoon',
   appName: 'Khmerzoon-Tv',
   webDir: 'dist',
-  server: {
-    url: 'https://khmerzoon.biz',
-    cleartext: true,
-    androidScheme: 'https'
-  },
+  // Uses local dist folder - no server URL needed for production builds
+  // For development/hot-reload, uncomment the server section below:
+  // server: {
+  //   url: 'https://khmerzoon.biz',
+  //   cleartext: true,
+  //   androidScheme: 'https'
+  // },
   plugins: {
     ScreenOrientation: {
       // Allow orientation changes to be managed programmatically
