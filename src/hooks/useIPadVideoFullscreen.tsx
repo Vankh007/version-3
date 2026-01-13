@@ -147,6 +147,15 @@ export function useIPadVideoFullscreen({ containerRef, videoRef }: UseIPadVideoF
           max-height: 100dvh !important;
           object-fit: contain !important;
         }
+        
+        /* iPad specific - ensure video fits within screen bounds */
+        @media screen and (min-width: 768px) {
+          .video-fullscreen-container video {
+            object-fit: contain !important;
+            max-height: 100vh !important;
+            max-width: 100vw !important;
+          }
+        }
 
         body.video-fullscreen-active {
           overflow: hidden !important;
