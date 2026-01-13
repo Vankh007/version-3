@@ -1574,11 +1574,15 @@ const VideoPlayer = ({
 
   return (
     <>
-    {/* Android native wrapper for top padding - hidden in fullscreen */}
+    {/* Android native wrapper for top padding - hidden in fullscreen and landscape */}
     <div className={isAndroidNative && !isFullscreen ? 'native-android-player-wrapper' : ''}>
     <div 
       ref={containerRef}
       className="relative bg-black group w-full aspect-video video-player-container video-player-safe-area"
+      style={{
+        maxHeight: isFullscreen ? '100vh' : undefined,
+        maxWidth: isFullscreen ? '100vw' : undefined,
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
