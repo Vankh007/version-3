@@ -10,7 +10,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { KHQRPaymentDialog } from '@/components/payment/KHQRPaymentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
+import { Capacitor } from '@capacitor/core';
 interface MobileHeaderProps {
   onMenuClick: () => void;
 }
@@ -54,6 +54,7 @@ const MobileHeader = ({
   }, [user]);
   const isShortPage = location.pathname === '/short';
   const hideHeaderStyles = isShortPage && isTablet;
+  const isNative = Capacitor.isNativePlatform();
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -63,7 +64,7 @@ const MobileHeader = ({
     });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  return <header className={`fixed top-0 left-0 right-0 z-30 transition-all duration-300 pt-[env(safe-area-inset-top)] ${hideHeaderStyles ? 'bg-transparent border-0' : isScrolled ? 'backdrop-blur-md bg-background/85' : 'bg-transparent'}`}>
+  return <header className={`fixed top-0 left-0 right-0 z-30 transition-all duration-300 ${isNative ? 'native-app-header' : 'pt-[env(safe-area-inset-top)]'} ${hideHeaderStyles ? 'bg-transparent border-0' : isScrolled ? 'backdrop-blur-md bg-background/85' : 'bg-transparent'}`}>
       <div className="flex items-center justify-between h-14 px-4 mt-2 py-[30px]">
         {/* Menu Button */}
         <button onClick={onMenuClick} className="p-2 hover:bg-accent rounded-lg transition-colors text-gray-800 dark:text-white touch-feedback" aria-label="Open menu">

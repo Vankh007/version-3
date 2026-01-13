@@ -1,316 +1,416 @@
-import { useState, useEffect, useCallback } from 'react';
-import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdMobRewardItem, RewardAdPluginEvents } from '@capacitor-community/admob';
-import { isNativeApp, getPlatform } from '@/hooks/useNativeApp';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 
-// Default Test Ad Unit IDs (used as fallback)
-const DEFAULT_TEST_ADS = {
-  android: {
-    appId: 'ca-app-pub-3940256099942544~3347511713',
-    banner: 'ca-app-pub-3940256099942544/6300978111',
-    interstitial: 'ca-app-pub-3940256099942544/1033173712',
-    rewarded: 'ca-app-pub-3940256099942544/5224354917',
-  },
-  ios: {
-    appId: 'ca-app-pub-3940256099942544~1458002511',
-    banner: 'ca-app-pub-3940256099942544/2934735716',
-    interstitial: 'ca-app-pub-3940256099942544/4411468910',
-    rewarded: 'ca-app-pub-3940256099942544/1712485313',
-  }
-};
-
-interface AdMobConfig {
-  enabled: boolean;
-  testMode: boolean;
-  androidAppId: string;
-  iosAppId: string;
-  ads: {
-    id: string;
-    name: string;
-    ad_type: string;
-    ad_unit_id: string;
-    platform: string;
-    placement: string;
-    is_active: boolean;
-    is_test_mode: boolean;
-    frequency_cap: number | null;
-  }[];
+interface AppAd {
+  id: string;
+  name: string;
+  ad_type: string;
+  ad_unit_id: string;
+  platform: string;
+  placement: string;
+  is_active: boolean;
+  is_test_mode: boolean;
+  priority: number;
+  frequency_cap: number | null;
+  show_after_seconds: number | null;
+  reward_amount: number | null;
+  reward_type: string | null;
 }
 
-export const useAdMob = () => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isBannerVisible, setIsBannerVisible] = useState(false);
-  const [isInterstitialLoaded, setIsInterstitialLoaded] = useState(false);
-  const [isRewardedLoaded, setIsRewardedLoaded] = useState(false);
-  const [config, setConfig] = useState<AdMobConfig | null>(null);
-  const [loading, setLoading] = useState(true);
+interface AdMobSettings {
+  enabled: boolean;
+  test_mode: boolean;
+  personalized_ads: boolean;
+  child_directed: boolean;
+  max_ad_content_rating: string;
+  android_app_id?: string;
+  ios_app_id?: string;
+}
 
-  const platform = getPlatform();
-  const defaultAds = platform === 'ios' ? DEFAULT_TEST_ADS.ios : DEFAULT_TEST_ADS.android;
+interface InterstitialSettings {
+  show_on_app_start: boolean;
+  show_between_episodes: boolean;
+  cooldown_seconds: number;
+  max_per_session: number;
+}
 
-  // Fetch AdMob settings from Supabase
+interface RewardedSettings {
+  reward_multiplier: number;
+  video_complete_required: boolean;
+  max_per_day: number;
+}
+
+interface BannerSettings {
+  adaptive_banner: boolean;
+  refresh_rate_seconds: number;
+  anchor_position: 'top' | 'bottom';
+}
+
+// AdMob Plugin interface (from @capacitor-community/admob)
+interface AdMobPlugin {
+  initialize: (options: {
+    testingDevices?: string[];
+    initializeForTesting?: boolean;
+    tagForChildDirectedTreatment?: boolean;
+    tagForUnderAgeOfConsent?: boolean;
+    maxAdContentRating?: 'General' | 'ParentalGuidance' | 'Teen' | 'MatureAudience';
+  }) => Promise<void>;
+  showBanner: (options: {
+    adId: string;
+    adSize?: string;
+    position?: 'TOP_CENTER' | 'BOTTOM_CENTER';
+    margin?: number;
+    isTesting?: boolean;
+  }) => Promise<void>;
+  hideBanner: () => Promise<void>;
+  prepareInterstitial: (options: { adId: string; isTesting?: boolean }) => Promise<void>;
+  showInterstitial: () => Promise<void>;
+  prepareRewardVideoAd: (options: { adId: string; isTesting?: boolean }) => Promise<void>;
+  showRewardVideoAd: () => Promise<{ type: string; amount: number }>;
+}
+
+// Session tracking for frequency caps
+let sessionInterstitialCount = 0;
+let lastInterstitialTime = 0;
+let dailyRewardedCount = 0;
+let lastRewardedDate = '';
+let isAdMobInitialized = false;
+
+export function useAdMob() {
+  const [ads, setAds] = useState<AppAd[]>([]);
+  const [globalSettings, setGlobalSettings] = useState<AdMobSettings | null>(null);
+  const [interstitialSettings, setInterstitialSettings] = useState<InterstitialSettings | null>(null);
+  const [rewardedSettings, setRewardedSettings] = useState<RewardedSettings | null>(null);
+  const [bannerSettings, setBannerSettings] = useState<BannerSettings | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  const [adMobReady, setAdMobReady] = useState(false);
+  const initializingRef = useRef(false);
+
   useEffect(() => {
-    const fetchAdMobSettings = async () => {
-      if (!isNativeApp()) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Fetch global settings
-        const { data: settingsData } = await supabase
-          .from('app_ad_settings')
-          .select('setting_key, setting_value');
-
-        // Fetch active ads for current platform
-        const { data: adsData } = await supabase
-          .from('app_ads')
-          .select('*')
-          .eq('is_active', true)
-          .or(`platform.eq.${platform},platform.eq.both`);
-
-        // Parse settings
-        let enabled = true;
-        let testMode = false;
-        let androidAppId = defaultAds.appId;
-        let iosAppId = DEFAULT_TEST_ADS.ios.appId;
-
-        settingsData?.forEach((setting) => {
-          const value = setting.setting_value as Record<string, unknown>;
-          switch (setting.setting_key) {
-            case 'global_settings':
-              enabled = value.enabled !== false;
-              testMode = value.test_mode === true;
-              break;
-            case 'admob_android_app_id':
-              if (value.app_id) androidAppId = value.app_id as string;
-              break;
-            case 'admob_ios_app_id':
-              if (value.app_id) iosAppId = value.app_id as string;
-              break;
-          }
-        });
-
-        setConfig({
-          enabled,
-          testMode,
-          androidAppId,
-          iosAppId,
-          ads: adsData || [],
-        });
-      } catch (error) {
-        console.error('Error fetching AdMob settings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAdMobSettings();
-  }, [platform]);
-
-  // Get ad unit for a specific type and placement
-  const getAdUnit = useCallback((adType: string, placement?: string): string | null => {
-    if (!config?.ads?.length) {
-      // Fallback to defaults
-      switch (adType) {
-        case 'banner': return defaultAds.banner;
-        case 'interstitial': return defaultAds.interstitial;
-        case 'rewarded': return defaultAds.rewarded;
-        default: return null;
-      }
-    }
-
-    // Find matching ad from database
-    const matchingAd = config.ads.find(ad => {
-      const typeMatch = ad.ad_type === adType;
-      const placementMatch = !placement || ad.placement === placement;
-      return typeMatch && placementMatch && ad.is_active;
-    });
-
-    return matchingAd?.ad_unit_id || null;
-  }, [config, defaultAds]);
-
-  // Check if should use test mode
-  const isTestMode = useCallback((): boolean => {
-    return config?.testMode ?? true;
-  }, [config]);
-
-  const initialize = useCallback(async () => {
-    if (!isNativeApp() || isInitialized || !config) return;
-    if (!config.enabled) {
-      console.log('AdMob disabled in settings');
-      return;
-    }
-
-    try {
-      await AdMob.initialize({
-        initializeForTesting: isTestMode(),
-      });
-      setIsInitialized(true);
-      console.log('AdMob initialized with settings from dashboard');
-    } catch (error) {
-      console.error('AdMob init error:', error);
-    }
-  }, [isInitialized, config, isTestMode]);
-
-  const showBanner = useCallback(async (position: 'top' | 'bottom' = 'bottom', placement?: string) => {
-    if (!isNativeApp() || !isInitialized || !config?.enabled) return;
-
-    const adId = getAdUnit('banner', placement);
-    if (!adId) {
-      console.log('No banner ad configured for placement:', placement);
-      return;
-    }
-
-    try {
-      const options: BannerAdOptions = {
-        adId,
-        adSize: BannerAdSize.ADAPTIVE_BANNER,
-        position: position === 'top' ? BannerAdPosition.TOP_CENTER : BannerAdPosition.BOTTOM_CENTER,
-        margin: 0,
-        isTesting: isTestMode(),
-      };
-
-      await AdMob.showBanner(options);
-      setIsBannerVisible(true);
-    } catch (error) {
-      console.error('Banner error:', error);
-    }
-  }, [isInitialized, config, getAdUnit, isTestMode]);
-
-  const hideBanner = useCallback(async () => {
-    if (!isNativeApp()) return;
-
-    try {
-      await AdMob.hideBanner();
-      setIsBannerVisible(false);
-    } catch (error) {
-      console.error('Hide banner error:', error);
+    const native = Capacitor.isNativePlatform();
+    setIsNative(native);
+    
+    if (native) {
+      fetchAdsAndSettings();
     }
   }, []);
 
-  const prepareInterstitial = useCallback(async (placement?: string) => {
-    if (!isNativeApp() || !isInitialized || !config?.enabled) return;
+  // Initialize AdMob when settings are loaded
+  useEffect(() => {
+    if (isNative && globalSettings && !isAdMobInitialized && !initializingRef.current) {
+      initializeAdMob();
+    }
+  }, [isNative, globalSettings]);
 
-    const adId = getAdUnit('interstitial', placement);
-    if (!adId) {
-      console.log('No interstitial ad configured for placement:', placement);
+  const getAdMobPlugin = (): AdMobPlugin | null => {
+    try {
+      // Try to get the plugin from window (Capacitor plugins expose themselves here)
+      const AdMob = (window as any).Capacitor?.Plugins?.AdMob || (window as any).AdMob;
+      return AdMob || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const initializeAdMob = async () => {
+    if (isAdMobInitialized || initializingRef.current || !globalSettings) return;
+    
+    initializingRef.current = true;
+    const AdMob = getAdMobPlugin();
+    
+    if (!AdMob) {
+      console.warn('[AdMob] Plugin not available. Install @capacitor-community/admob');
+      initializingRef.current = false;
       return;
     }
 
     try {
+      // Map content rating from dashboard to AdMob format
+      const ratingMap: Record<string, 'General' | 'ParentalGuidance' | 'Teen' | 'MatureAudience'> = {
+        'G - General Audiences': 'General',
+        'PG - Parental Guidance': 'ParentalGuidance',
+        'T - Teen': 'Teen',
+        'MA - Mature Audience': 'MatureAudience',
+      };
+
+      await AdMob.initialize({
+        testingDevices: globalSettings.test_mode ? [] : undefined,
+        initializeForTesting: globalSettings.test_mode,
+        tagForChildDirectedTreatment: globalSettings.child_directed,
+        tagForUnderAgeOfConsent: globalSettings.child_directed,
+        maxAdContentRating: ratingMap[globalSettings.max_ad_content_rating] || 'General',
+      });
+
+      isAdMobInitialized = true;
+      setAdMobReady(true);
+      console.log('[AdMob] Initialized successfully with settings:', {
+        testMode: globalSettings.test_mode,
+        childDirected: globalSettings.child_directed,
+        maxRating: globalSettings.max_ad_content_rating,
+      });
+    } catch (error) {
+      console.error('[AdMob] Initialization failed:', error);
+    } finally {
+      initializingRef.current = false;
+    }
+  };
+
+  const fetchAdsAndSettings = async () => {
+    try {
+      const platform = Capacitor.getPlatform();
+      
+      // Fetch active ads for current platform
+      const { data: adsData } = await supabase
+        .from('app_ads')
+        .select('*')
+        .eq('is_active', true)
+        .or(`platform.eq.${platform},platform.eq.both`)
+        .order('priority', { ascending: false });
+
+      setAds(adsData || []);
+
+      // Fetch settings from app_ad_settings table
+      const { data: settingsData } = await supabase
+        .from('app_ad_settings')
+        .select('*');
+
+      settingsData?.forEach((s) => {
+        const value = s.setting_value as Record<string, unknown>;
+        switch (s.setting_key) {
+          case 'global_settings':
+            setGlobalSettings(value as unknown as AdMobSettings);
+            break;
+          case 'interstitial_settings':
+            setInterstitialSettings(value as unknown as InterstitialSettings);
+            break;
+          case 'rewarded_settings':
+            setRewardedSettings(value as unknown as RewardedSettings);
+            break;
+          case 'banner_settings':
+            setBannerSettings(value as unknown as BannerSettings);
+            break;
+        }
+      });
+    } catch (error) {
+      console.error('[AdMob] Error fetching config:', error);
+    }
+  };
+
+  const getAdForPlacement = useCallback((placement: string, adType?: string): AppAd | null => {
+    if (!globalSettings?.enabled) return null;
+
+    let candidates = ads.filter(ad => ad.placement === placement);
+    
+    if (adType) {
+      candidates = candidates.filter(ad => ad.ad_type === adType);
+    }
+
+    return candidates[0] || null;
+  }, [ads, globalSettings]);
+
+  const canShowInterstitial = useCallback((): boolean => {
+    if (!globalSettings?.enabled || !interstitialSettings) return false;
+
+    const now = Date.now();
+    const cooldownMs = (interstitialSettings.cooldown_seconds || 60) * 1000;
+    
+    // Check cooldown
+    if (now - lastInterstitialTime < cooldownMs) {
+      return false;
+    }
+
+    // Check session limit
+    if (sessionInterstitialCount >= (interstitialSettings.max_per_session || 5)) {
+      return false;
+    }
+
+    return true;
+  }, [globalSettings, interstitialSettings]);
+
+  const showInterstitialAd = useCallback(async (placement: string): Promise<boolean> => {
+    if (!canShowInterstitial()) return false;
+
+    const ad = getAdForPlacement(placement, 'interstitial');
+    if (!ad) return false;
+
+    const AdMob = getAdMobPlugin();
+    if (!AdMob) {
+      console.log('[AdMob] Would show interstitial for:', placement);
+      return false;
+    }
+
+    try {
+      const useTestMode = globalSettings?.test_mode || ad.is_test_mode;
+      
       await AdMob.prepareInterstitial({
-        adId,
-        isTesting: isTestMode(),
+        adId: ad.ad_unit_id,
+        isTesting: useTestMode,
       });
-      setIsInterstitialLoaded(true);
-    } catch (error) {
-      console.error('Prepare interstitial error:', error);
-    }
-  }, [isInitialized, config, getAdUnit, isTestMode]);
-
-  const showInterstitial = useCallback(async (placement?: string) => {
-    if (!isNativeApp() || !config?.enabled) return;
-
-    if (!isInterstitialLoaded) {
-      await prepareInterstitial(placement);
-    }
-
-    try {
+      
       await AdMob.showInterstitial();
-      setIsInterstitialLoaded(false);
-      // Prepare next interstitial
-      setTimeout(() => prepareInterstitial(placement), 1000);
+      
+      sessionInterstitialCount++;
+      lastInterstitialTime = Date.now();
+      
+      console.log('[AdMob] Interstitial shown for:', placement);
+      return true;
     } catch (error) {
-      console.error('Show interstitial error:', error);
+      console.error('[AdMob] Failed to show interstitial:', error);
+      return false;
     }
-  }, [isInterstitialLoaded, prepareInterstitial, config]);
+  }, [canShowInterstitial, getAdForPlacement, globalSettings]);
 
-  const prepareRewarded = useCallback(async (placement?: string) => {
-    if (!isNativeApp() || !isInitialized || !config?.enabled) return;
+  const recordInterstitialShown = useCallback(() => {
+    sessionInterstitialCount++;
+    lastInterstitialTime = Date.now();
+  }, []);
 
-    const adId = getAdUnit('rewarded', placement);
-    if (!adId) {
-      console.log('No rewarded ad configured for placement:', placement);
-      return;
+  const canShowRewarded = useCallback((): boolean => {
+    if (!globalSettings?.enabled || !rewardedSettings) return false;
+
+    const today = new Date().toDateString();
+    
+    // Reset daily counter if new day
+    if (lastRewardedDate !== today) {
+      dailyRewardedCount = 0;
+      lastRewardedDate = today;
+    }
+
+    // Check daily limit
+    if (dailyRewardedCount >= (rewardedSettings.max_per_day || 10)) {
+      return false;
+    }
+
+    return true;
+  }, [globalSettings, rewardedSettings]);
+
+  const showRewardedAd = useCallback(async (placement: string): Promise<{ success: boolean; reward?: { type: string; amount: number } }> => {
+    if (!canShowRewarded()) return { success: false };
+
+    const ad = getAdForPlacement(placement, 'rewarded');
+    if (!ad) return { success: false };
+
+    const AdMob = getAdMobPlugin();
+    if (!AdMob) {
+      console.log('[AdMob] Would show rewarded ad for:', placement);
+      return { success: false };
     }
 
     try {
+      const useTestMode = globalSettings?.test_mode || ad.is_test_mode;
+      
       await AdMob.prepareRewardVideoAd({
-        adId,
-        isTesting: isTestMode(),
+        adId: ad.ad_unit_id,
+        isTesting: useTestMode,
       });
-      setIsRewardedLoaded(true);
+      
+      const result = await AdMob.showRewardVideoAd();
+      
+      dailyRewardedCount++;
+      
+      const rewardMultiplier = rewardedSettings?.reward_multiplier || 1;
+      const reward = {
+        type: result.type || ad.reward_type || 'coins',
+        amount: (result.amount || ad.reward_amount || 1) * rewardMultiplier,
+      };
+      
+      console.log('[AdMob] Rewarded ad completed:', reward);
+      return { success: true, reward };
     } catch (error) {
-      console.error('Prepare rewarded error:', error);
+      console.error('[AdMob] Failed to show rewarded ad:', error);
+      return { success: false };
     }
-  }, [isInitialized, config, getAdUnit, isTestMode]);
+  }, [canShowRewarded, getAdForPlacement, globalSettings, rewardedSettings]);
 
-  const showRewarded = useCallback(async (placement?: string): Promise<AdMobRewardItem | null> => {
-    if (!isNativeApp() || !config?.enabled) return null;
+  const recordRewardedShown = useCallback(() => {
+    dailyRewardedCount++;
+  }, []);
 
-    if (!isRewardedLoaded) {
-      await prepareRewarded(placement);
+  const getRewardAmount = useCallback((baseAmount: number): number => {
+    const multiplier = rewardedSettings?.reward_multiplier || 1;
+    return baseAmount * multiplier;
+  }, [rewardedSettings]);
+
+  const showBannerAd = useCallback(async (placement: string): Promise<boolean> => {
+    if (!globalSettings?.enabled) return false;
+
+    const ad = getAdForPlacement(placement, 'banner');
+    if (!ad) return false;
+
+    const AdMob = getAdMobPlugin();
+    if (!AdMob) {
+      console.log('[AdMob] Would show banner for:', placement);
+      return false;
     }
 
-    return new Promise(async (resolve) => {
+    try {
+      const useTestMode = globalSettings?.test_mode || ad.is_test_mode;
+      const position = bannerSettings?.anchor_position === 'top' ? 'TOP_CENTER' : 'BOTTOM_CENTER';
+      
+      await AdMob.showBanner({
+        adId: ad.ad_unit_id,
+        adSize: bannerSettings?.adaptive_banner ? 'ADAPTIVE_BANNER' : 'SMART_BANNER',
+        position,
+        isTesting: useTestMode,
+      });
+      
+      console.log('[AdMob] Banner shown for:', placement);
+      return true;
+    } catch (error) {
+      console.error('[AdMob] Failed to show banner:', error);
+      return false;
+    }
+  }, [globalSettings, getAdForPlacement, bannerSettings]);
+
+  const hideBannerAd = useCallback(async (): Promise<void> => {
+    const AdMob = getAdMobPlugin();
+    if (AdMob) {
       try {
-        const listenerHandle = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
-          listenerHandle.remove();
-          resolve(reward);
-        });
-
-        await AdMob.showRewardVideoAd();
-        setIsRewardedLoaded(false);
-        setTimeout(() => prepareRewarded(placement), 1000);
+        await AdMob.hideBanner();
       } catch (error) {
-        console.error('Show rewarded error:', error);
-        resolve(null);
+        console.error('[AdMob] Failed to hide banner:', error);
       }
-    });
-  }, [isRewardedLoaded, prepareRewarded, config]);
-
-  // Get all configured ads for a placement
-  const getAdsForPlacement = useCallback((placement: string) => {
-    return config?.ads?.filter(ad => ad.placement === placement && ad.is_active) || [];
-  }, [config]);
-
-  // Check if ads are enabled
-  const isAdsEnabled = useCallback(() => {
-    return config?.enabled ?? false;
-  }, [config]);
-
-  // Initialize when config is loaded
-  useEffect(() => {
-    if (config && !isInitialized) {
-      initialize();
     }
-  }, [config, isInitialized, initialize]);
+  }, []);
 
-  // Pre-load ads when initialized
-  useEffect(() => {
-    if (isInitialized && config?.enabled) {
-      prepareInterstitial();
-      prepareRewarded();
+  // Reset session counters (call on app resume or new session)
+  const resetSession = useCallback(() => {
+    sessionInterstitialCount = 0;
+    lastInterstitialTime = 0;
+  }, []);
+
+  // Refresh settings from database
+  const refreshSettings = useCallback(() => {
+    if (isNative) {
+      fetchAdsAndSettings();
     }
-  }, [isInitialized, config?.enabled, prepareInterstitial, prepareRewarded]);
+  }, [isNative]);
 
   return {
-    isNative: isNativeApp(),
-    isInitialized,
-    isBannerVisible,
-    isInterstitialLoaded,
-    isRewardedLoaded,
-    loading,
-    config,
-    showBanner,
-    hideBanner,
-    showInterstitial,
-    showRewarded,
-    prepareInterstitial,
-    prepareRewarded,
-    getAdsForPlacement,
-    isAdsEnabled,
-    isTestMode: isTestMode(),
+    isNative,
+    adMobReady,
+    globalSettings,
+    interstitialSettings,
+    rewardedSettings,
+    bannerSettings,
+    getAdForPlacement,
+    canShowInterstitial,
+    showInterstitialAd,
+    recordInterstitialShown,
+    canShowRewarded,
+    showRewardedAd,
+    recordRewardedShown,
+    getRewardAmount,
+    showBannerAd,
+    hideBannerAd,
+    resetSession,
+    refreshSettings,
+    // Helper to check if ads are enabled at all
+    isEnabled: globalSettings?.enabled && isNative,
+    // Helper to check if in test mode
+    isTestMode: globalSettings?.test_mode || false,
   };
-};
+}
+
+export default useAdMob;

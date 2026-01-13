@@ -3,11 +3,15 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import VideoPlayer from '@/components/VideoPlayer';
 import ContentAccessCheck from '@/components/ContentAccessCheck';
 import { useContentData } from '@/hooks/useContentData';
+import { useScreenOrientation } from '@/hooks/useScreenOrientation';
 import { useMemo } from 'react';
 
 const EmbedMovies = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  
+  // Allow landscape orientation on embed player
+  useScreenOrientation(true);
   
   const { content, videoSources, loading, error } = useContentData(id, 'movie');
   

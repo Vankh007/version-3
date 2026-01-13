@@ -6,30 +6,44 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     url: 'https://khmerzoon.biz',
-    cleartext: true
+    cleartext: true,
+    androidScheme: 'https'
   },
   plugins: {
-    Browser: {
-      // Browser plugin configuration for OAuth
+    ScreenOrientation: {
+      // Allow orientation changes to be managed programmatically
     },
     StatusBar: {
-      style: 'dark',
-      backgroundColor: '#000000'
+      style: 'light',
+      backgroundColor: '#00000000', // Fully transparent
+      overlaysWebView: true // Content draws behind status bar
     },
     AdMob: {
-      // AdMob configuration - add your App ID here
-      // For Android: ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY
-      // For iOS: ca-app-pub-XXXXXXXXXXXXXXXX~ZZZZZZZZZZ
+      // AdMob settings are loaded from Supabase app_ad_settings
+    },
+    SplashScreen: {
+      launchShowDuration: 2500,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
+      backgroundColor: '#000000',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true
+    },
+    Browser: {
+      // In-app browser for OAuth
     }
   },
   android: {
     allowMixedContent: true,
-    captureInput: true,
-    webContentsDebuggingEnabled: false
+    backgroundColor: '#000000',
+    // Edge-to-edge display enabled via StatusBar plugin
   },
   ios: {
-    contentInset: 'automatic',
-    allowsLinkPreview: false
+    backgroundColor: '#000000',
+    contentInset: 'automatic'
   }
 };
 

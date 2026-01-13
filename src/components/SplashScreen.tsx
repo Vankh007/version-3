@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSiteSettingsOptional } from '@/contexts/SiteSettingsContext';
 import { useAuth } from '@/hooks/useAuth';
+import { Capacitor } from '@capacitor/core';
 import logoDark from '@/assets/khmerzoon.png';
 import logoLight from '@/assets/logo-light-new.png';
 
@@ -23,6 +24,7 @@ const SplashScreen = () => {
   const darkLogo = settingsLoaded ? (siteSettings.logos?.dark_logo || logoDark) : null;
   const brandTitle = settingsLoaded ? (siteSettings.settings?.site_title || 'KHMERZOON') : null;
   const logo = effectiveTheme === 'light' ? lightLogo : darkLogo;
+  const isNative = Capacitor.isNativePlatform();
 
   const appReady = !authLoading && settingsLoaded;
 
@@ -37,13 +39,14 @@ const SplashScreen = () => {
   useEffect(() => {
     if (!contentReady) return;
     
-    const duration = 1500;
+    // Slightly longer splash on native for better UX
+    const duration = isNative ? 2000 : 1500;
     const timer = window.setTimeout(() => {
       setMinTimePassed(true);
     }, duration);
     
     return () => window.clearTimeout(timer);
-  }, [contentReady]);
+  }, [contentReady, isNative]);
 
   // Handle animation out
   useEffect(() => {

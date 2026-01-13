@@ -22,6 +22,7 @@ import logoLight from '@/assets/logo-light-new.png';
 import { MembershipDialog } from '@/components/MembershipDialog';
 import { PullToRefresh } from './PullToRefresh';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
+import { Capacitor } from '@capacitor/core';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  const isNative = Capacitor.isNativePlatform();
   const { effectiveTheme } = useTheme();
   const siteSettings = useSiteSettingsOptional();
 
@@ -123,10 +125,10 @@ const Layout = ({ children }: LayoutProps) => {
     return null;
   }
 
-  // Mobile and Tablet Layout - unified experience
-  if (isMobile || isTablet) {
+  // Mobile, Tablet, and Native App Layout - unified experience
+  if (isMobile || isTablet || isNative) {
     return (
-      <div className={`min-h-screen bg-background dark:bg-black pt-[env(safe-area-inset-top)]`}>
+      <div className={`min-h-screen bg-background dark:bg-black ${isNative ? 'native-safe-area-top' : 'pt-[env(safe-area-inset-top)]'}`}>
         <MobileHeader onMenuClick={() => setMobileSidebarOpen(true)} />
         <MobileSidebar isOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
         

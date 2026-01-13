@@ -4,6 +4,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import VideoPlayer from '@/components/VideoPlayer';
 import ContentAccessCheck from '@/components/ContentAccessCheck';
 import { useContentData } from '@/hooks/useContentData';
+import { useScreenOrientation } from '@/hooks/useScreenOrientation';
 import { supabase } from '@/lib/supabase';
 
 const EmbedSeries = () => {
@@ -12,6 +13,9 @@ const EmbedSeries = () => {
   const [resolvedContentId, setResolvedContentId] = useState<string | null>(null);
   const [isResolvingTMDB, setIsResolvingTMDB] = useState(false);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
+  
+  // Allow landscape orientation on embed player
+  useScreenOrientation(true);
   
   // Resolve TMDB ID to UUID internally (without changing URL)
   useEffect(() => {

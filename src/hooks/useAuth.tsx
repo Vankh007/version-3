@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
-import { App } from '@capacitor/app';
+import { App as CapApp } from '@capacitor/app';
 
 interface AuthContextType {
   user: User | null;
@@ -19,13 +19,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * Get the appropriate redirect URL based on platform
+ * - Web: uses window.location.origin
+ * - Native: uses custom URL scheme (com.plexkhmerzoon://)
  */
 const getRedirectUrl = (): string => {
   if (Capacitor.isNativePlatform()) {
-    // Native app: use custom URL scheme for deep linking
+    // Use custom URL scheme for native apps
     return 'com.plexkhmerzoon://auth/callback';
   }
-  // Web: use current origin
   return `${window.location.origin}/`;
 };
 
@@ -49,48 +50,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    // Handle deep link for native OAuth callback
-    let appUrlListener: any = null;
-    
+    // Handle deep link OAuth callback for native apps
     if (Capacitor.isNativePlatform()) {
-      App.addListener('appUrlOpen', async ({ url }) => {
-        console.log('Deep link received:', url);
+      const handleDeepLink = async (url: string) => {
+        console.log('[Auth] Deep link received:', url);
         
-        // Handle OAuth callback
-        if (url.includes('auth/callback')) {
-          // Extract tokens from URL
-          const urlObj = new URL(url.replace('com.plexkhmerzoon://', 'https://'));
-          const accessToken = urlObj.searchParams.get('access_token') || urlObj.hash?.match(/access_token=([^&]*)/)?.[1];
-          const refreshToken = urlObj.searchParams.get('refresh_token') || urlObj.hash?.match(/refresh_token=([^&]*)/)?.[1];
-
-          if (accessToken && refreshToken) {
-            try {
-              const { data, error } = await supabase.auth.setSession({
+        // Check if this is an OAuth callback
+        if (url.includes('access_token') || url.includes('refresh_token') || url.includes('code=')) {
+          try {
+            // Extract the hash/query from the deep link URL
+            const urlObj = new URL(url);
+            const params = new URLSearchParams(urlObj.hash.substring(1) || urlObj.search);
+            
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            
+            if (accessToken && refreshToken) {
+              // Set the session from the tokens
+              const { error } = await supabase.auth.setSession({
                 access_token: accessToken,
                 refresh_token: refreshToken,
               });
               
               if (error) {
-                console.error('Error setting session:', error);
+                console.error('[Auth] Error setting session:', error);
               } else {
-                console.log('Session set successfully');
-                // Close the browser window
-                await Browser.close();
+                console.log('[Auth] Session set successfully from deep link');
+                // Close the browser after successful auth
+                try {
+                  await Browser.close();
+                } catch (e) {
+                  // Browser might not be open
+                }
               }
-            } catch (e) {
-              console.error('Error processing OAuth callback:', e);
             }
+          } catch (error) {
+            console.error('[Auth] Error handling deep link:', error);
           }
         }
-      }).then(listener => {
-        appUrlListener = listener;
+      };
+
+      // Listen for app URL open events (deep links)
+      CapApp.addListener('appUrlOpen', ({ url }) => {
+        handleDeepLink(url);
+      });
+
+      // Check if app was opened via deep link
+      CapApp.getLaunchUrl().then((result) => {
+        if (result?.url) {
+          handleDeepLink(result.url);
+        }
       });
     }
 
     return () => {
       subscription.unsubscribe();
-      if (appUrlListener) {
-        appUrlListener.remove();
+      if (Capacitor.isNativePlatform()) {
+        CapApp.removeAllListeners();
       }
     };
   }, []);
@@ -122,42 +138,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithGoogle = async () => {
     const redirectUrl = getRedirectUrl();
+    const isNative = Capacitor.isNativePlatform();
 
-    if (Capacitor.isNativePlatform()) {
-      // Native: open OAuth URL in in-app browser
-      const { data, error } = await supabase.auth.signInWithOAuth({
+    if (isNative) {
+      // For native apps, use in-app browser and handle deep link callback
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            skipBrowserRedirect: true, // Don't auto-redirect, we'll handle it
+          },
+        });
+
+        if (error) {
+          return { error };
+        }
+
+        if (data?.url) {
+          // Open OAuth URL in in-app browser
+          await Browser.open({ 
+            url: data.url,
+            presentationStyle: 'popover',
+            toolbarColor: '#000000',
+          });
+        }
+
+        return { error: null };
+      } catch (error) {
+        console.error('[Auth] Native Google sign-in error:', error);
+        return { error };
+      }
+    } else {
+      // Web: standard OAuth flow
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: true, // Don't redirect automatically
         },
       });
 
-      if (error) {
-        return { error };
-      }
-
-      if (data?.url) {
-        // Open the OAuth URL in the in-app browser
-        await Browser.open({ 
-          url: data.url,
-          windowName: '_self',
-          presentationStyle: 'popover'
-        });
-      }
-
-      return { error: null };
+      return { error };
     }
-
-    // Web: standard OAuth flow
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-
-    return { error };
   };
 
   return (

@@ -22,7 +22,13 @@ import { VideoSource } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { AuthDialog } from "@/components/AuthDialog";
 import { InlineRentSubscribe } from "@/components/video/InlineRentSubscribe";
+import { Capacitor } from '@capacitor/core';
+import { ScreenOrientation } from '@capacitor/screen-orientation';
+import { hideStatusBar, showStatusBar } from '@/hooks/useNativeStatusBar';
+import { enterVideoFullscreen, exitVideoFullscreen } from '@/hooks/useImmersiveMode';
+import { lockToLandscape, lockToPortrait } from '@/hooks/useScreenOrientation';
 import { useVideoResume } from '@/hooks/useVideoResume';
+import { useIPadVideoFullscreen } from '@/hooks/useIPadVideoFullscreen';
 import { usePinchToZoom } from '@/hooks/usePinchToZoom';
 import { SupportUsOverlay } from './video/SupportUsOverlay';
 import { useSupportUsSettings } from '@/hooks/useSupportUsSettings';
@@ -32,7 +38,7 @@ import { useVideoAds } from '@/hooks/useVideoAds';
 import { VideoAdPlayer } from '@/components/ads/VideoAdPlayer';
 import { useSiteSettings } from '@/contexts/SiteSettingsContext';
 import AppLockOverlay from '@/components/AppLockOverlay';
-import { toggleFullscreen } from '@/hooks/useFullscreenState';
+import { useAdMobRewarded } from '@/hooks/useAdMobRewarded';
 
 interface VideoPlayerProps {
   videoSources: VideoSource[];
@@ -195,9 +201,16 @@ const VideoPlayer = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   
-  // Web fullscreen state
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const isFullscreenTransitioning = false;
+  // Use iPad-optimized fullscreen hook for PWA support with rotation handling
+  const { 
+    isFullscreen, 
+    toggleFullscreen: iPadToggleFullscreen, 
+    isTransitioning: isFullscreenTransitioning,
+    maintainPlaybackDuringRotation 
+  } = useIPadVideoFullscreen({
+    containerRef,
+    videoRef
+  });
 
   // Pinch-to-zoom for mobile/iPad fullscreen
   const { scale: zoomScale, isZoomed, resetZoom } = usePinchToZoom({
@@ -257,14 +270,20 @@ const VideoPlayer = ({
   // Track which support checkpoints have been shown: start (0%), 50%, 85%
   const [shownSupportCheckpoints, setShownSupportCheckpoints] = useState<Set<'start' | '50' | '85'>>(new Set());
   const [hasAlreadySupported, setHasAlreadySupported] = useState(false);
+  // Track AdMob rewarded checkpoints for 40% and 85%
+  const [shownAdMobCheckpoints, setShownAdMobCheckpoints] = useState<Set<'start' | '40' | '85'>>(new Set());
   
-  // Stub out native-only features for web
-  const isNativeForAds = false;
-  const shouldShowRewardedAtCheckpoint = (_checkpoint: string) => false;
-  const showRewardedAd = async (_checkpoint: string) => {};
-  const isShowingRewardedAd = false;
-  const [shownAdMobCheckpoints, setShownAdMobCheckpoints] = useState<Set<string>>(new Set());
-  const isNativePlatform = false;
+  // AdMob Rewarded Ads for native app (free users only)
+  const {
+    shouldShowAtCheckpoint: shouldShowRewardedAtCheckpoint,
+    showRewardedAd,
+    isShowingAd: isShowingRewardedAd,
+    isNative: isNativeForAds,
+  } = useAdMobRewarded({
+    contentId: contentId || mediaId,
+    hasContentPurchase: accessType !== 'free' && hasAccess === true,
+  });
+  
   const episodesScrollRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -499,6 +518,9 @@ const VideoPlayer = ({
       />
     </>
   );
+
+  // Check if running on native platform
+  const isNativePlatform = useMemo(() => Capacitor.isNativePlatform(), []);
   
   // SECURITY: Only expose video sources when user has verified access
   // This prevents download managers and DevTools from seeing video URLs until access is confirmed
@@ -944,10 +966,80 @@ const VideoPlayer = ({
     };
   }, [currentServer, onEnded]);
 
+  // Fullscreen change listener for iOS native platform - handle status bar and immersive mode
+  // Note: Android is handled by useIPadVideoFullscreen with CSS-based fullscreen to avoid conflicts
+  // The useIPadVideoFullscreen hook handles the actual fullscreen state and CSS-based fullscreen for PWA
+  useEffect(() => {
+    // Skip this listener on Android native - it's handled by useIPadVideoFullscreen
+    const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+    if (isAndroid) return;
+    
+    const handleNativeFullscreenChange = async () => {
+      const isFS = !!(
+        document.fullscreenElement || 
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      // Handle native platform fullscreen state changes with proper sequencing
+      // Critical: On older Android (like OPP A57), sequence matters for both rotation AND nav bar hiding
+      if (Capacitor.isNativePlatform()) {
+        if (isFS) {
+          // ENTERING FULLSCREEN - sequence: orientation -> wait -> hide bars
+          try {
+            // Step 1: Lock to landscape first
+            await lockToLandscape();
+            // Step 2: Wait for orientation to fully settle (important for older Android)
+            await new Promise(resolve => setTimeout(resolve, 150));
+            // Step 3: Hide status bar after orientation is stable
+            await hideStatusBar();
+          } catch (error) {
+            console.error('Failed to set fullscreen orientation:', error);
+          }
+        } else {
+          // EXITING FULLSCREEN - sequence: show bars -> wait -> orientation
+          try {
+            // Step 1: Show status bar first
+            await showStatusBar();
+            // Step 2: Wait before changing orientation
+            await new Promise(resolve => setTimeout(resolve, 100));
+            // Step 3: Return to portrait
+            await lockToPortrait();
+          } catch (error) {
+            console.error('Failed to reset orientation:', error);
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('fullscreenchange', handleNativeFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleNativeFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleNativeFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleNativeFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleNativeFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleNativeFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleNativeFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleNativeFullscreenChange);
+    };
+  }, []);
+
   // Sleep timer cleanup
   useEffect(() => {
     return () => {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    };
+  }, []);
+
+  // Cleanup: ensure portrait mode and status bar on unmount
+  useEffect(() => {
+    return () => {
+      if (Capacitor.isNativePlatform()) {
+        showStatusBar().catch(console.error);
+        lockToPortrait().catch(console.error);
+      }
     };
   }, []);
 
@@ -1271,11 +1363,12 @@ const VideoPlayer = ({
     setCurrentTime(value[0]);
   };
 
-  // Fullscreen toggle - uses web fullscreen API
-  const handleToggleFullscreen = useCallback(async () => {
-    const result = await toggleFullscreen(containerRef.current || undefined);
-    setIsFullscreen(result);
-  }, []);
+  // Fullscreen toggle - uses the iPad-optimized hook
+  // The hook handles: CSS-based fullscreen for PWA, touch events, and playback preservation
+  const toggleFullscreen = useCallback(async () => {
+    // Use the hook's toggle which handles PWA, iPad, and native cases
+    await iPadToggleFullscreen();
+  }, [iPadToggleFullscreen]);
 
   const togglePictureInPicture = async () => {
     if (!videoRef.current) return;
@@ -1476,8 +1569,8 @@ const VideoPlayer = ({
     );
   }
 
-  // Check if Android native app (always false for web)
-  const isAndroidNative = false;
+  // Check if Android native app
+  const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
   return (
     <>
@@ -1881,7 +1974,7 @@ const VideoPlayer = ({
                       e.stopPropagation();
                       // Avoid double-triggering from both click and touchend
                       if (!(e.nativeEvent as any).fromTouch) {
-                        handleToggleFullscreen();
+                        toggleFullscreen();
                       }
                     }}
                     onTouchStart={(e) => {
@@ -1892,7 +1985,7 @@ const VideoPlayer = ({
                       e.preventDefault();
                       e.stopPropagation();
                       // Use setTimeout to ensure touch is processed properly on iPad
-                      setTimeout(() => handleToggleFullscreen(), 0);
+                      setTimeout(() => toggleFullscreen(), 0);
                     }}
                     className={`h-8 w-8 sm:h-9 sm:w-9 text-white hover:bg-white/10 active:bg-white/20 touch-manipulation select-none ${
                       isFullscreenTransitioning ? 'opacity-50 cursor-wait' : ''

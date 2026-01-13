@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import AdSlot from './AdSlot';
 
@@ -65,10 +66,16 @@ export function UniversalAdSlot({ placement, className = '', pageLocation = 'wat
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [isInView, setIsInView] = useState(false);
 
-  // Always use web ads since native is removed
+  // Check if native platform
   useEffect(() => {
-    setIsNative(false);
-    fetchWebAd();
+    const native = Capacitor.isNativePlatform();
+    setIsNative(native);
+    
+    if (native) {
+      fetchAdConfig();
+    } else {
+      fetchWebAd();
+    }
   }, [placement]);
 
   // Intersection observer to track visibility
@@ -90,7 +97,52 @@ export function UniversalAdSlot({ placement, className = '', pageLocation = 'wat
     };
   }, []);
 
-  // Fetch web ad from Supabase
+  // Fetch native AdMob config from Supabase - supports all ad types
+  const fetchAdConfig = async () => {
+    try {
+      const platform = Capacitor.getPlatform();
+      
+      // Fetch ad for this placement - any ad type
+      const { data: adsData } = await supabase
+        .from('app_ads')
+        .select('*')
+        .eq('is_active', true)
+        .eq('placement', placement)
+        .or(`platform.eq.${platform},platform.eq.both`)
+        .order('priority', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Fetch global settings
+      const { data: settingsData } = await supabase
+        .from('app_ad_settings')
+        .select('*')
+        .eq('setting_key', 'global_settings')
+        .maybeSingle();
+
+      const rawSettings = settingsData?.setting_value as Record<string, unknown> | null;
+      const settings: AdMobSettings = {
+        enabled: (rawSettings?.enabled as boolean) ?? true,
+        test_mode: (rawSettings?.test_mode as boolean) ?? true,
+      };
+      
+      if (adsData && settings.enabled) {
+        setAdConfig({ ad: adsData, settings });
+        console.log('[UniversalAdSlot] Loaded config for placement:', placement, adsData.name, 'type:', adsData.ad_type);
+      } else {
+        console.log('[UniversalAdSlot] No active ad found for placement:', placement);
+        // Try fetching web ad as fallback
+        fetchWebAd();
+      }
+    } catch (error) {
+      console.error('[UniversalAdSlot] Error fetching config:', error);
+      fetchWebAd();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch web ad as fallback
   const fetchWebAd = async () => {
     try {
       const { data } = await supabase
